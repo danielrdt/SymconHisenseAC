@@ -91,7 +91,7 @@ class HisenseACSplitter extends IPSModule {
 		]);
 
 		$result = curl_exec($ch);
-		curl_close($ch;
+		curl_close($ch);
 
 		$this->LogMessage("Result: ".$result);
 

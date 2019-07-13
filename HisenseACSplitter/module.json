@@ -1,0 +1,14 @@
+{
+    "id": "{1BE067BC-6499-49F2-A8C9-BB6DB6B4ADF6}",
+    "name": "HisenseACSplitter",
+    "type": 3,
+    "vendor": "Hisense",
+    "aliases":
+    [
+        "Ayla Cloud"
+    ],  
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "HISENSEAC"
+}

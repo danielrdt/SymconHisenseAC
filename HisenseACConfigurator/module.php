@@ -34,16 +34,7 @@ class HisenseACConfigurator extends IPSModule {
 		}
 	}
 
-	public function GetConfigurationForm(){
-		return '{
-			"elements":
-			[
-				{ "type": "Button", "caption": "An", "onClick": "$this->GetDevices();" }
-			]
-		}';
-	}
-
-	private function GetDevices(){
+	public function GetDevices(){
 		$data = array("command" => "GetDevices");
 		$data_string = json_encode($data);
 		$this->SendDataToParent($data_string);

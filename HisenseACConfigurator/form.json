@@ -1,0 +1,6 @@
+{
+    "actions":
+    [
+        { "type": "Button", "caption": "An", "onClick": "HISENSEACCONF_GetDevices();" }
+    ]
+}

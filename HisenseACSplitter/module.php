@@ -65,7 +65,7 @@ class HisenseACSplitter extends IPSModule {
 			"status":
 			[
 				{ "code": 102, "icon": "active", "caption": "Signed in" },
-				{ "code": 201, "icon": "error", "caption": "Authentication failed" }
+				{ "code": 201, "icon": "error", "caption": "Authentication failed" },
 				{ "code": 202, "icon": "error", "caption": "Account is locked" }
 			]
 		}';
@@ -101,7 +101,7 @@ class HisenseACSplitter extends IPSModule {
 
 		$resData = json_decode($result);
 
-		if($resData->error){
+		if(property_exists($resData, 'error')){
 			switch($resData->error){
 				case 'Invalid email or password':
 					$this->SetStatus(201);
@@ -117,7 +117,7 @@ class HisenseACSplitter extends IPSModule {
 			return;
 		}
 
-		$this->WriteAttributeString("AuthToken", $resData->auth_token);
+		$this->WriteAttributeString("AuthToken", $resData->access_token);
 		$this->WriteAttributeString("RefreshToken", $resData->refresh_token);
 		$this->WriteAttributeInteger("TokenExpire", $resData->expires_in);
 		$this->WriteAttributeInteger("LastSignIn", time());

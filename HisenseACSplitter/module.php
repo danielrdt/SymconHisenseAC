@@ -138,16 +138,24 @@ class HisenseACSplitter extends IPSModule {
 		$result = curl_exec($ch);
 		curl_close($ch);
 
-		$this->LogMessage("Result: ".$result, KL_MESSAGE);
-
-		$resData = json_decode($result);
+		return $result;
 	}
 
 	public function ForwardData($JSONString) {
 		$json = json_decode($JSONString);
-		switch($json->command){
-			case 'GetDevices':
-				$this->GetDevices();
+		switch($json->DataID){
+			case '{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}': //Configurator
+				switch($json->command){
+					case 'GetDevices':
+						return $this->GetDevices();
+				}
+				break;
+
+			case '{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}': //Device
+				switch($json->command){
+					case 'GetProperties':
+						break;
+				}
 				break;
 		}
 

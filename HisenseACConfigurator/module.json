@@ -5,7 +5,7 @@
     "vendor": "Hisense",
     "aliases":
     [
-        "Ayla Cloud Devices"
+        "Hisense Configurator"
     ],  
     "parentRequirements": ["{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}"],
     "childRequirements": [],

@@ -1,8 +1,12 @@
 {
 	"translations": {
 		"de": {
-                  "Username": "Benutzername",
-                  "Password": "Passwort"
+                  "Name": "Name",
+				  "MAC": "MAC",
+				  "Location": "Ort",
+				  "State": "Status",
+				  "Instance has no active parent.": "Cloud ist nicht verbunden",
+				  "Not connected to Splitter.": "Keine Cloud Eltern-Element"
 		}
 	}
 }

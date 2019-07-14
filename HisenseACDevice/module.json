@@ -1,0 +1,14 @@
+{
+    "id": "{CAE274A0-7E22-9376-0884-4D5C3BAD5CDB}",
+    "name": "HisenseACDevice",
+    "type": 3,
+    "vendor": "Hisense",
+    "aliases":
+    [
+        "Hisense Device"
+    ],  
+    "parentRequirements": ["{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}"],
+    "childRequirements": [],
+    "implemented": ["{352F1E56-5B4F-1AE7-6417-EAF9692813BD}"],
+    "prefix": "HISENSEAC"
+}

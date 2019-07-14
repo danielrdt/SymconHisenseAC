@@ -5,10 +5,16 @@
     "vendor": "Hisense",
     "aliases":
     [
-        "Ayla Cloud"
+        "Hisense Cloud"
     ],  
     "parentRequirements": [],
-    "childRequirements": ["{1BD0C8DF-25BC-91F2-1FFA-3085397D1A54}"],
-    "implemented": ["{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}"],
+    "childRequirements": [
+        "{1BD0C8DF-25BC-91F2-1FFA-3085397D1A54}",
+        "{352F1E56-5B4F-1AE7-6417-EAF9692813BD}"
+    ],
+    "implemented": [
+        "{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}",
+        "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}"
+    ],
     "prefix": "HISENSEAC"
 }

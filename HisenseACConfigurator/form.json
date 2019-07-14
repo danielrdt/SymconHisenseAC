@@ -1,6 +1,6 @@
 {
     "actions":
     [
-        { "type": "Button", "caption": "An", "onClick": "HISENSEACCONF_GetDevices();" }
+        { "type": "Button", "caption": "An", "onClick": "HISENSEACCONF_GetDevices($id);" }
     ]
 }

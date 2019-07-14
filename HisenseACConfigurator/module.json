@@ -9,6 +9,6 @@
     ],  
     "parentRequirements": ["{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}"],
     "childRequirements": [],
-    "implemented": [],
+    "implemented": ["{1BD0C8DF-25BC-91F2-1FFA-3085397D1A54}"],
     "prefix": "HISENSEACCONF"
 }

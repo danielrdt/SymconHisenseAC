@@ -9,6 +9,6 @@
     ],  
     "parentRequirements": [],
     "childRequirements": [],
-    "implemented": [],
+    "implemented": ["{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}"],
     "prefix": "HISENSEAC"
 }

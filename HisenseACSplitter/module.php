@@ -66,6 +66,7 @@ class HisenseACSplitter extends IPSModule {
 			[
 				{ "code": 102, "icon": "active", "caption": "Signed in" },
 				{ "code": 201, "icon": "error", "caption": "Authentication failed" }
+				{ "code": 202, "icon": "error", "caption": "Account is locked" }
 			]
 		}';
 	}
@@ -73,6 +74,7 @@ class HisenseACSplitter extends IPSModule {
 	private function SignIn() {
 		$ch = curl_init("https://user-field-eu.aylanetworks.com/users/sign_in.json");
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
 		$data = array("user" => array(
 			"application" => array(
@@ -84,6 +86,8 @@ class HisenseACSplitter extends IPSModule {
 			));
 		$data_string = json_encode($data);
 
+		$this->LogMessage("Request: ".$data_string, KL_MESSAGE);
+
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
 			'Content-Type: application/json',
@@ -93,77 +97,62 @@ class HisenseACSplitter extends IPSModule {
 		$result = curl_exec($ch);
 		curl_close($ch);
 
-		$this->LogMessage("Result: ".$result);
+		$this->LogMessage("Result: ".$result, KL_MESSAGE);
 
 		$resData = json_decode($result);
 
-		$this->WriteAttributeString("AuthToken", $resData['auth_token']);
-		$this->WriteAttributeString("RefreshToken", $resData['refresh_token']);
-		$this->WriteAttributeInteger("TokenExpire", $resData['expires_in']);
+		if($resData->error){
+			switch($resData->error){
+				case 'Invalid email or password':
+					$this->SetStatus(201);
+					break;
+				case 'Your account is locked.':
+					$this->SetStatus(202);
+					break;
+			}
+			$this->WriteAttributeString("AuthToken", "");
+			$this->WriteAttributeString("RefreshToken", "");
+			$this->WriteAttributeInteger("TokenExpire", 0);
+			$this->WriteAttributeInteger("LastSignIn", 0);
+			return;
+		}
+
+		$this->WriteAttributeString("AuthToken", $resData->auth_token);
+		$this->WriteAttributeString("RefreshToken", $resData->refresh_token);
+		$this->WriteAttributeInteger("TokenExpire", $resData->expires_in);
 		$this->WriteAttributeInteger("LastSignIn", time());
 
-		$this->LogMessage("Token: ".$this->ReadAttributeString("AuthToken"));
+		$this->LogMessage("Token: ".$this->ReadAttributeString("AuthToken"), KL_MESSAGE);
 
-		$this->SetStatus(101);
+		$this->SetStatus(102);
 	}
 
-	/**
-	* Die folgenden Funktionen stehen automatisch zur Verfügung, wenn das Modul über die "Module Control" eingefügt wurden.
-	* Die Funktionen werden, mit dem selbst eingerichteten Prefix, in PHP und JSON-RPC wiefolgt zur Verfügung gestellt:
-	*
-	* ABC_MeineErsteEigeneFunktion($id);
-	*
-	*/
-	public function Update() {
-		try{
-			$this->Connect([
-				'batPct',
-				'bin',
-				'cleanMissionStatus',
-				'pose',
-				'dock'
-			]);
+	private function GetDevices(){
+		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/devices.json");
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Authorization: auth_token'.$this->ReadAttributeString("AuthToken")
+		]);
 
-			$presence = false;
-			$presenceId = $this->ReadPropertyString('PresenceVariable');
-			if($presenceId !== "" && IPS_VariableExists($presenceId)){
-				$presence = GetValueBoolean($presenceId);
-			}
+		$result = curl_exec($ch);
+		curl_close($ch);
 
-			//Abwesend & freigabe zur Reinigung & Roomba ist bereit & Reinigung läuft noch nicht & letzte Reinigung ist min 12 Std. her
-			if(!$presence AND
-				GetValueBoolean($this->GetIDForIdent('CleanBySchedule')) AND
-				GetValueInteger($this->GetIDForIdent('State')) == 0 AND
-				(GetValueInteger($this->GetIDForIdent('CleanMissionStatus')) == 1 OR GetValueInteger($this->GetIDForIdent('CleanMissionStatus')) == 2) AND
-				(GetValueInteger($this->GetIDForIdent('LastAutostart')) + ($this->ReadPropertyInteger('TimeBetweenMission') * 3600)) < time()){
-				//Zeit zwischen Reinigung min. Stunden x 3600 Sek Sek
-		
-				$roomba->Start();
-				SetValueInteger($this->GetIDForIdent('LastAutostart'), time());
-			}
+		$this->LogMessage("Result: ".$result, KL_MESSAGE);
 
-			$this->roomba->loop();
+		$resData = json_decode($result);
+	}
 
-			if($this->roomba->ContainsValue('batPct')){
-				SetValueInteger($this->GetIDForIdent("BatPct"), $this->roomba->GetValue('batPct'));
-			}
-			
-			if($this->roomba->ContainsValue('bin')){
-				if($this->roomba->GetValue('bin')->present){
-					if($this->roomba->GetValue('bin')->full){
-						SetValueInteger($this->GetIDForIdent("Bin"), 2);
-					}else{
-						SetValueInteger($this->GetIDForIdent("Bin"), 1);
-					}
-				}else{
-					SetValueInteger($this->GetIDForIdent("Bin"), 0);
-				}
-			}
-			
-			$this->CheckMissionStatus();
-			$this->Disconnect();
-		}finally{
-			SetValueInteger($this->GetIDForIdent("Control"), 0);
+	public function ForwardData($JSONString) {
+		$json = json_decode($JSONString);
+		switch($json->command){
+			case 'GetDevices':
+				$this->GetDevices();
+				break;
 		}
+
+		$response = array();
+
+		return json_encode($response);
 	}
 }

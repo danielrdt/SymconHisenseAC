@@ -1,0 +1,14 @@
+{
+    "id": "{21356AC2-4F34-4B54-2C15-9D8997F590E4}",
+    "name": "HisenseACConfigurator",
+    "type": 4,
+    "vendor": "Hisense",
+    "aliases":
+    [
+        "Ayla Cloud Devices"
+    ],  
+    "parentRequirements": ["{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}"],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "HISENSEAC"
+}

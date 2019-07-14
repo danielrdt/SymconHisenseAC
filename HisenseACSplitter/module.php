@@ -141,6 +141,24 @@ class HisenseACSplitter extends IPSModule {
 		return $result;
 	}
 
+	private function GetProperties($DeviceKey, $Properties){
+		$names = [];
+		foreach($Properties as $property){
+			$names[] = urlencode('names[]='.$property);
+		}
+		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/devices/$DeviceKey/properties.json?".join("&", $names));
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Authorization: auth_token'.$this->ReadAttributeString("AuthToken")
+		]);
+
+		$result = curl_exec($ch);
+		curl_close($ch);
+
+		return $result;
+	}
+
 	public function ForwardData($JSONString) {
 		$json = json_decode($JSONString);
 		switch($json->DataID){
@@ -154,6 +172,7 @@ class HisenseACSplitter extends IPSModule {
 			case '{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}': //Device
 				switch($json->command){
 					case 'GetProperties':
+						return $this->GetProperties($json->DeviceKey, $json->Properties);
 						break;
 				}
 				break;

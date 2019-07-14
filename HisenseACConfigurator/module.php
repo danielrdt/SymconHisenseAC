@@ -56,7 +56,8 @@ class HisenseACConfigurator extends IPSModule {
 
 		$data = $this->GetDevices();
 		
-        foreach ($data as $device) {
+        foreach ($data as $dev) {
+			$device = $dev->device;
             $Value = [
 				'name'  => $device->product_name,
 				'mac'	=> $device->mac,
@@ -90,9 +91,9 @@ class HisenseACConfigurator extends IPSModule {
 		$data_string = json_encode($data);
 		$result = $this->SendDataToParent($data_string);
 
-		$this->LogMessage("Result: ".$result, KL_MESSAGE);
+		$jsonData = json_decode($result);
 
-		return json_decode($result);
+		return $jsonData;
 	}
 
 	/**

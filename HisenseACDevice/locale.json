@@ -1,7 +1,10 @@
 {
 	"translations": {
 		"de": {
-                 
+				 "t_temp_in": "Ist-Temperatur",
+				 "t_temp": "Soll-Temperatur",
+				 "t_power": "Betrieb",
+				 "t_run_mode": "t_run_mode"
 		}
 	}
 }

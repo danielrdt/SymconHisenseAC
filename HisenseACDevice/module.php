@@ -119,8 +119,7 @@ class HisenseACDevice extends IPSModule {
 		if($SenderID == $this->GetSplitter() && $Message == IM_CHANGESTATUS){
 			$ins = IPS_GetInstance($SenderID);
 			if($ins['InstanceStatus'] == 102){
-				$this->SetTimerInterval("UpdateTimer", 60000);
-				$this->Update();
+				$this->SetTimerInterval("UpdateTimer", 5000);
 			}else{
 				$this->SetTimerInterval("UpdateTimer", 0);
 			}

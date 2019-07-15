@@ -245,12 +245,12 @@ class HisenseACDevice extends IPSModule {
 		return $props;
 	}
 
-	function FahrenheitToCelsius($given_value){
+	private function FahrenheitToCelsius($given_value){
 		$celsius=5/9*($given_value-32);
 		return round($celsius*2)/2;
 	}
 
-	function CelsiusToFahrenheit($given_value){
+	private function CelsiusToFahrenheit($given_value){
 		$fahrenheit=$given_value*9/5+32;
 		return $fahrenheit ;
 	}

@@ -29,7 +29,7 @@ class HisenseACSplitter extends IPSModule {
 		$this->RegisterAttributeInteger("LastSignIn", 0);
 
 		//Timer
-		$this->RegisterTimer("UpdateTimer", 0, 'HisenseACSplitter_KeepAlive($_IPS[\'TARGET\']);');
+		$this->RegisterTimer("RefreshTokenTimer", 0, 'HISENSEACSPLIT_RefreshToken($_IPS[\'TARGET\']);');
 	}
 
 	// Überschreibt die intere IPS_ApplyChanges($id) Funktion
@@ -127,8 +127,6 @@ class HisenseACSplitter extends IPSModule {
 		$this->WriteAttributeInteger("LastSignIn", time());
 
 		$this->SendDebug("SignIn", "Token: ".$this->ReadAttributeString("AuthToken"), 0);
-
-		$this->RegisterTimer("RefreshTokenTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
 
 		$this->SetStatus(102);
 		$this->SetTimerInterval("RefreshTokenTimer", 180000);

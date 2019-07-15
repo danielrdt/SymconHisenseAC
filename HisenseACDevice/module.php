@@ -114,7 +114,7 @@ class HisenseACDevice extends IPSModule {
 		switch($Ident) {
 			case 't_temp':
 				$Value = round($this->CelsiusToFahrenheit($Value));
-				$SetValue = $this->FahrenheitToCelsius($Value)
+				$SetValue = $this->FahrenheitToCelsius($Value);
 				break;
 		}
 

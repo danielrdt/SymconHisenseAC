@@ -84,8 +84,7 @@ class HisenseACDevice extends IPSModule {
 		$ins = IPS_GetInstance($splitter);
 		if($ins['InstanceStatus'] == 102){
 			$this->SendDebug("Create", "Update on create", 0);
-			$this->SetTimerInterval("UpdateTimer", 60000);
-			$this->Update();
+			$this->SetTimerInterval("UpdateTimer", 5000);
 		}
 	}
 
@@ -120,6 +119,7 @@ class HisenseACDevice extends IPSModule {
 			$ins = IPS_GetInstance($SenderID);
 			if($ins['InstanceStatus'] == 102){
 				$this->SetTimerInterval("UpdateTimer", 5000);
+				$this->Update();
 			}else{
 				$this->SetTimerInterval("UpdateTimer", 0);
 			}

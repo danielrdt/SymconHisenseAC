@@ -129,12 +129,12 @@ class HisenseACSplitter extends IPSModule {
 		$this->SendDebug("SignIn", "Token: ".$this->ReadAttributeString("AuthToken"), 0);
 
 		$this->SetStatus(102);
-		$this->SetTimerInterval("RefreshTokenTimer", 180000);
+		$refresh = round($resData->expires_in * 0.9);
+		$this->LogMessage("SignIn successful - next refresh in $refresh sec", KL_MESSAGE);
+		$this->SetTimerInterval("RefreshTokenTimer", $refresh * 1000);
 	}
 
 	public function RefreshToken(){
-		$this->LogMessage("Refreshing Token", KL_MESSAGE);
-
 		$ch = curl_init("https://user-field-eu.aylanetworks.com/users/refresh_token.json");
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -190,7 +190,9 @@ class HisenseACSplitter extends IPSModule {
 		$this->SendDebug("RefreshToken", "Token: ".$this->ReadAttributeString("AuthToken"), 0);
 
 		$this->SetStatus(102);
-		$this->SetTimerInterval("RefreshTokenTimer", round($resData->expires_in * 0.9) * 1000);
+		$refresh = round($resData->expires_in * 0.9);
+		$this->LogMessage("Token refresh successful - next refresh in $refresh sec", KL_MESSAGE);
+		$this->SetTimerInterval("RefreshTokenTimer", $refresh * 1000);
 	}
 
 	private function GetDevices(){

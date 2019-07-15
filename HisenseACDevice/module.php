@@ -41,6 +41,7 @@ class HisenseACDevice extends IPSModule {
 			IPS_CreateVariableProfile($fanSpeedProfile, 1);
 			IPS_SetVariableProfileValues($fanSpeedProfile, 0, 9, 1);
 			IPS_SetVariableProfileIcon($fanSpeedProfile, "Ventilation");
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 0, $this->Translate("auto"), "", 0x00FF00);
 		}
 
 		$this->RegisterVariableFloat("f_temp_in", $this->Translate("f_temp_in"), "~Temperature.Room", 30);
@@ -66,7 +67,7 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterAttributeInteger("t_fan_speed", 0);
 
 		//Timer
-		$this->RegisterTimer("UpdateTimer", 60000, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
+		$this->RegisterTimer("UpdateTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
 
 		$this->EnableAction("t_temp");
 		$this->EnableAction("t_power");
@@ -77,6 +78,15 @@ class HisenseACDevice extends IPSModule {
 		$this->EnableAction("t_backlight");
 		$this->EnableAction("t_work_mode");
 		$this->EnableAction("t_fan_speed");
+
+		$splitter = $this->GetSplitter();
+		$this->RegisterMessage($splitter, IM_CHANGESTATUS);
+		$ins = IPS_GetInstance($splitter);
+		if($ins['InstanceStatus'] == 102){
+			$this->SendDebug("Create", "Update on create", 0);
+			$this->SetTimerInterval("UpdateTimer", 60000);
+			$this->Update();
+		}
 	}
 
 	/**
@@ -101,25 +111,57 @@ class HisenseACDevice extends IPSModule {
 	public function ApplyChanges() {
 		// Diese Zeile nicht löschen
 		parent::ApplyChanges();
+	}
 
-		//if($this->ReadPropertyBoolean("AutomaticUpdate")){
-		//	$this->SetTimerInterval("UpdateTimer", $this->ReadPropertyInteger("UpdateInterval") * 60000);
-		//}else{
-		//	$this->SetTimerInterval("UpdateTimer", 0);
-		//}
+	public function MessageSink($TimeStamp, $SenderID, $Message, $Data){
+		$this->SendDebug("MessageSink", "Message from SenderID ".$SenderID." with Message ".$Message."\r\n Data: ".print_r($Data, true),0);
+
+		if($SenderID == $this->GetSplitter() && $Message == IM_CHANGESTATUS){
+			$ins = IPS_GetInstance($SenderID);
+			if($ins['InstanceStatus'] == 102){
+				$this->SetTimerInterval("UpdateTimer", 60000);
+				$this->Update();
+			}else{
+				$this->SetTimerInterval("UpdateTimer", 0);
+			}
+		}
 	}
 
 	public function RequestAction($Ident, $Value) {
+		$splitter = $this->GetSplitter();
+		$ins = IPS_GetInstance($splitter);
+		if($ins['InstanceStatus'] <> 102){
+			$this->LogMessage("Could not send command because cloud not connected", KL_ERROR);
+			throw new Exception($this->Translate("Cloud not connected"));
+		}
+
 		$SetValue = $Value;
 		switch($Ident) {
 			case 't_temp':
 				$Value = round($this->CelsiusToFahrenheit($Value));
 				$SetValue = $this->FahrenheitToCelsius($Value);
 				break;
+
+			case 't_power':
+			case 't_backlight':
+			case 't_eco':
+			case 't_fan_leftright':
+			case 't_fan_mute':
+			case 't_fan_power':
+				$Value = $Value ? 1 : 0;
+				break;
+			
+			case 't_fan_speed':
+			case 't_work_mode':
+				break;
+
+			default:
+				throw new Exception("Invalid Ident");
 		}
 
 		$this->SetDatapoint($this->ReadAttributeInteger($Ident), $Value);
 		$this->SetValue($Ident, $SetValue);
+		$this->SetTimerInterval("UpdateTimer", 5000);
 	}
 
 	public function GetConfigurationForm(){
@@ -127,6 +169,8 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function Update(){
+		$this->SetTimerInterval("UpdateTimer", 60000);
+
 		$props = $this->GetProperties([
 			'f_temp_in', 		//Temperatursensor
 			't_temp',			//Zieltemperatur
@@ -152,6 +196,21 @@ class HisenseACDevice extends IPSModule {
 			}
 			$this->SetValue($propName, $val);
 		}
+	}
+
+	/**
+     * Liefert den aktuell verbundenen Splitter.
+     *
+     * @access private
+     * @return bool|int FALSE wenn kein Splitter vorhanden, sonst die ID des Splitter.
+     */
+    private function GetSplitter()
+    {
+        $SplitterID = IPS_GetInstance($this->insId)['ConnectionID'];
+        if ($SplitterID == 0) {
+            return false;
+        }
+        return $SplitterID;
 	}
 
 	private function SetDatapoint($Key, $Value){

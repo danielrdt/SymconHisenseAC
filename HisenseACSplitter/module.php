@@ -66,7 +66,8 @@ class HisenseACSplitter extends IPSModule {
 			[
 				{ "code": 102, "icon": "active", "caption": "Signed in" },
 				{ "code": 201, "icon": "error", "caption": "Authentication failed" },
-				{ "code": 202, "icon": "error", "caption": "Account is locked" }
+				{ "code": 202, "icon": "error", "caption": "Account is locked" },
+				{ "code": 203, "icon": "error", "caption": "Unknown error" }
 			]
 		}';
 	}
@@ -86,7 +87,7 @@ class HisenseACSplitter extends IPSModule {
 			));
 		$data_string = json_encode($data);
 
-		$this->LogMessage("Request: ".$data_string, KL_MESSAGE);
+		$this->SendDebug("SignIn", "Request: ".$data_string, 0);
 
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -97,7 +98,7 @@ class HisenseACSplitter extends IPSModule {
 		$result = curl_exec($ch);
 		curl_close($ch);
 
-		$this->LogMessage("Result: ".$result, KL_MESSAGE);
+		$this->SendDebug("SignIn", "Result: ".$result, 0);
 
 		$resData = json_decode($result);
 
@@ -109,11 +110,14 @@ class HisenseACSplitter extends IPSModule {
 				case 'Your account is locked.':
 					$this->SetStatus(202);
 					break;
+				default:
+					$this->SetStatus(203);
 			}
 			$this->WriteAttributeString("AuthToken", "");
 			$this->WriteAttributeString("RefreshToken", "");
 			$this->WriteAttributeInteger("TokenExpire", 0);
 			$this->WriteAttributeInteger("LastSignIn", 0);
+			$this->SetTimerInterval("RefreshTokenTimer", 0);
 			return;
 		}
 
@@ -122,9 +126,67 @@ class HisenseACSplitter extends IPSModule {
 		$this->WriteAttributeInteger("TokenExpire", $resData->expires_in);
 		$this->WriteAttributeInteger("LastSignIn", time());
 
-		$this->LogMessage("Token: ".$this->ReadAttributeString("AuthToken"), KL_MESSAGE);
+		$this->SendDebug("SignIn", "Token: ".$this->ReadAttributeString("AuthToken"), 0);
+
+		$this->RegisterTimer("RefreshTokenTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
 
 		$this->SetStatus(102);
+		$this->SetTimerInterval("RefreshTokenTimer", 180000);
+	}
+
+	public function RefreshToken(){
+		$this->LogMessage("Refreshing Token", KL_MESSAGE);
+
+		$ch = curl_init("https://user-field-eu.aylanetworks.com/users/refresh_token.json");
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+		$data = array("refresh_token" => $this->ReadAttributeString("RefreshToken"));
+		$data_string = json_encode($data);
+
+		$this->SendDebug("RefreshToken", "Request: ".$data_string, 0);
+
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Content-Type: application/json',
+			'Content-Length: '.strlen($data_string)
+		]);
+
+		$result = curl_exec($ch);
+		curl_close($ch);
+
+		$this->SendDebug("RefreshToken", "Result: ".$result, 0);
+
+		$resData = json_decode($result);
+
+		if(property_exists($resData, 'error')){
+			switch($resData->error){
+				case 'Invalid email or password':
+					$this->SetStatus(201);
+					break;
+				case 'Your account is locked.':
+					$this->SetStatus(202);
+					break;
+					default:
+					$this->SetStatus(203);
+			}
+			$this->WriteAttributeString("AuthToken", "");
+			$this->WriteAttributeString("RefreshToken", "");
+			$this->WriteAttributeInteger("TokenExpire", 0);
+			$this->WriteAttributeInteger("LastSignIn", 0);
+			$this->SetTimerInterval("RefreshTokenTimer", 0);
+			return;
+		}
+
+		$this->WriteAttributeString("AuthToken", $resData->access_token);
+		$this->WriteAttributeString("RefreshToken", $resData->refresh_token);
+		$this->WriteAttributeInteger("TokenExpire", $resData->expires_in);
+		$this->WriteAttributeInteger("LastSignIn", time());
+
+		$this->SendDebug("RefreshToken", "Token: ".$this->ReadAttributeString("AuthToken"), 0);
+
+		$this->SetStatus(102);
+		$this->SetTimerInterval("RefreshTokenTimer", round($resData->expires_in * 0.9) * 1000);
 	}
 
 	private function GetDevices(){
@@ -169,7 +231,7 @@ class HisenseACSplitter extends IPSModule {
 		));
 		$data_string = json_encode($data);
 
-		$this->LogMessage("Request: ".$data_string, KL_MESSAGE);
+		$this->SendDebug("SetDatapoint", "Request: ".$data_string, 0);
 
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [

@@ -15,7 +15,8 @@
 				 "heating": "Heizen",
 				 "cooling": "Kühlen",
 				 "drying": "Trocknen",
-				 "auto": "Automatik"
+				 "auto": "Automatik",
+				 "Cloud not connected": "Cloud nicht verbunden"
 		}
 	}
 }

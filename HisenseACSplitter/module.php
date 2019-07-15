@@ -139,7 +139,9 @@ class HisenseACSplitter extends IPSModule {
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-		$data = array("refresh_token" => $this->ReadAttributeString("RefreshToken"));
+		$data = array("user" => array(
+			"refresh_token" => $this->ReadAttributeString("RefreshToken")
+		));
 		$data_string = json_encode($data);
 
 		$this->SendDebug("RefreshToken", "Request: ".$data_string, 0);
@@ -165,7 +167,11 @@ class HisenseACSplitter extends IPSModule {
 				case 'Your account is locked.':
 					$this->SetStatus(202);
 					break;
-					default:
+				case 'Your refresh token is invalid':
+					$this->LogMessage("Token invalid - SignIn", KL_WARNING);
+					$this->SignIn();
+					return;
+				default:
 					$this->SetStatus(203);
 			}
 			$this->WriteAttributeString("AuthToken", "");

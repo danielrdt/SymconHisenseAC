@@ -150,7 +150,7 @@ class HisenseACDevice extends IPSModule {
 					$val = $this->FahrenheitToCelsius($val);
 					break;
 			}
-			$this->SetValue($propName, $val)
+			$this->SetValue($propName, $val);
 		}
 	}
 

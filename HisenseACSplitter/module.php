@@ -144,13 +144,38 @@ class HisenseACSplitter extends IPSModule {
 	private function GetProperties($DeviceKey, $Properties){
 		$names = [];
 		foreach($Properties as $property){
-			$names[] = urlencode('names[]='.$property);
+			$names[] = urlencode('names[]').'='.$property;
 		}
+
 		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/devices/$DeviceKey/properties.json?".join("&", $names));
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
 			'Authorization: auth_token'.$this->ReadAttributeString("AuthToken")
+		]);
+
+		$result = curl_exec($ch);
+		curl_close($ch);
+
+		return $result;
+	}
+
+	private function SetDatapoint($Key, $Value){
+		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/properties/$Key/datapoints.json");
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$data = array("datapoint" => array(
+			"value" => $Value
+		));
+		$data_string = json_encode($data);
+
+		$this->LogMessage("Request: ".$data_string, KL_MESSAGE);
+
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Authorization: auth_token'.$this->ReadAttributeString("AuthToken"),
+			'Content-Type: application/json',
+			'Content-Length: '.strlen($data_string)
 		]);
 
 		$result = curl_exec($ch);
@@ -173,6 +198,10 @@ class HisenseACSplitter extends IPSModule {
 				switch($json->command){
 					case 'GetProperties':
 						return $this->GetProperties($json->DeviceKey, $json->Properties);
+						break;
+
+					case 'SetDatapoint':
+						return $this->SetDatapoint($json->DatapointKey, $json->DatapointValue);
 						break;
 				}
 				break;

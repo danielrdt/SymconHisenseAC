@@ -83,7 +83,7 @@ class HisenseACConfigurator extends IPSModule {
         return json_encode($Form);
 	}
 
-	public function GetDevices(){
+	private function GetDevices(){
 		$data = array(
 			"DataID" => "{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}",
 			"command" => "GetDevices"

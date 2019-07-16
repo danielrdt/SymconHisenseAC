@@ -42,6 +42,15 @@ class HisenseACDevice extends IPSModule {
 			IPS_SetVariableProfileValues($fanSpeedProfile, 0, 9, 1);
 			IPS_SetVariableProfileIcon($fanSpeedProfile, "Ventilation");
 			IPS_SetVariableProfileAssociation($fanSpeedProfile, 0, $this->Translate("auto"), "", 0x00FF00);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 1, "1", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 2, "2", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 3, "3", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 4, "4", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 5, "5", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 6, "6", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 7, "7", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 8, "8", "", 0xC0C0C0);
+			IPS_SetVariableProfileAssociation($fanSpeedProfile, 9, "9", "", 0xC0C0C0);
 		}
 
 		$this->RegisterVariableFloat("f_temp_in", $this->Translate("f_temp_in"), "~Temperature.Room", 30);

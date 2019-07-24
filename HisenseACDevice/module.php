@@ -64,9 +64,9 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterVariableInteger("t_work_mode", $this->Translate("t_work_mode"), $workModeProfile, 15);
 		$this->RegisterVariableInteger("t_fan_speed", $this->Translate("t_fan_speed"), $fanSpeedProfile, 40);
 
-		$this->RegisterAttributeInteger("f_temp_in", 0);
+		$roomTempId = $this->RegisterAttributeInteger("f_temp_in", 0);
 		$this->RegisterAttributeInteger("t_temp", 0);
-		$this->RegisterAttributeInteger("t_power", 0);
+		$powerId = $this->RegisterAttributeInteger("t_power", 0);
 		$this->RegisterAttributeInteger("t_fan_leftright", 0);
 		$this->RegisterAttributeInteger("t_fan_power", 0);
 		$this->RegisterAttributeInteger("t_fan_mute", 0);
@@ -74,9 +74,22 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterAttributeInteger("t_backlight", 0);
 		$this->RegisterAttributeInteger("t_work_mode", 0);
 		$this->RegisterAttributeInteger("t_fan_speed", 0);
+		$this->RegisterAttributeBoolean("OffTimerEnabled", false);
+
+		//Automation
+		$this->RegisterVariableBoolean("AutoCooling", $this->Translate("AutoCooling"), "~Switch", 4);
+		$this->RegisterVariableFloat("TargetTemperature", $this->Translate("TargetTemperature"), "~Temperature.Room", 5);
+		$this->RegisterPropertyFloat("OnHysteresis", 0.5);
+		$this->RegisterPropertyFloat("OffHysteresis", 2);
+		$this->RegisterPropertyFloat("OutsideMinimumTemperature", 18.0);
+		$this->RegisterPropertyInteger("RoomTemperature", $roomTempId);
+		$this->RegisterPropertyInteger("OutsideTemperature", 0);
+		$this->RegisterPropertyInteger("PresenceVariable", 0);
+		$this->RegisterPropertyInteger("PresenceTrailing", 0);
 
 		//Timer
 		$this->RegisterTimer("UpdateTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
+		$this->RegisterTimer("OffTimer", 0, "RequestAction($powerId, false, true);");
 
 		$this->EnableAction("t_temp");
 		$this->EnableAction("t_power");
@@ -119,23 +132,92 @@ class HisenseACDevice extends IPSModule {
 	public function ApplyChanges() {
 		// Diese Zeile nicht löschen
 		parent::ApplyChanges();
+
+		$this->RegisterMessage($this->GetIDForIdent('AutoCooling'), VM_UPDATE)
+		if($this->ReadPropertyInteger('RoomTemperature') > 0){
+			$this->RegisterMessage($this->ReadPropertyInteger('RoomTemperature'), VM_UPDATE);
+		}else{
+			$this->RegisterMessage($this->GetIDForIdent('f_temp_in'), VM_UPDATE);
+		}
+
+		if($this->ReadPropertyInteger('PresenceVariable') > 0) $this->RegisterMessage($this->ReadPropertyInteger('PresenceVariable'), VM_UPDATE);
+		if($this->ReadPropertyInteger('OutsideTemperature') > 0) $this->RegisterMessage($this->ReadPropertyInteger('OutsideTemperature'), VM_UPDATE);
 	}
 
 	public function MessageSink($TimeStamp, $SenderID, $Message, $Data){
 		$this->SendDebug("MessageSink", "Message from SenderID ".$SenderID." with Message ".$Message."\r\n Data: ".print_r($Data, true),0);
 
-		if($SenderID == $this->GetSplitter() && $Message == IM_CHANGESTATUS){
-			$ins = IPS_GetInstance($SenderID);
-			if($ins['InstanceStatus'] == 102){
-				$this->SetTimerInterval("UpdateTimer", 5000);
-				$this->Update();
-			}else{
-				$this->SetTimerInterval("UpdateTimer", 0);
-			}
+		$roomTempId = $this->ReadPropertyInteger('RoomTemperature') > 0 ? $this->ReadPropertyInteger('RoomTemperature') : $this->GetIDForIdent('f_temp_in');
+
+		switch($SenderID){
+			case $this->GetSplitter():
+				if($Message != IM_CHANGESTATUS) break;
+				$ins = IPS_GetInstance($SenderID);
+				if($ins['InstanceStatus'] == 102){
+					$this->SetTimerInterval("UpdateTimer", 5000);
+					$this->Update();
+				}else{
+					$this->SetTimerInterval("UpdateTimer", 0);
+				}
+				break;
+
+			case $roomTempId:
+			case $this->GetIDForIdent('AutoCooling'):
+			case $this->ReadPropertyInteger('OutsideTemperature'):
+			case $this->ReadPropertyInteger('PresenceVariable'):
+				if($Message != VM_UPDATE) break;
+				$this->CheckAutocool();
+				break;
 		}
 	}
 
-	public function RequestAction($Ident, $Value) {
+	private function CheckAutocool(){
+		if(!$this->GetValue('AutoCooling')) return; //Autocooling disabled
+		$outsideOn = $this->ReadPropertyInteger('OutsideTemperature') > 0 ? GetValueFloat($this->ReadPropertyInteger('OutsideTemperature')) < $this->ReadPropertyInteger('OutsideMinimumTemperature') : true;
+		$roomTempId = $this->ReadPropertyInteger('RoomTemperature') > 0 ? $this->ReadPropertyInteger('RoomTemperature') : $this->GetIDForIdent('f_temp_in');
+		$roomTemp = GetValueFloat($roomTempId);
+		$upperTempReached = $roomTemp > ($this->GetValue('TargetTemperature') + $this->ReadPropertyInteger('OnHysteresis'));
+		$lowerTempReached = $roomTemp < ($this->GetValue('TargetTemperature') - $this->ReadPropertyInteger('OffHysteresis'));
+		$presenceOn = $this->ReadPropertyInteger('PresenceVariable') > 0 ? GetValueBoolean($this->ReadPropertyInteger('PresenceVariable')) : true;
+		if($this->GetValue('t_power')){
+			//Device is on - check if we should turn off
+			if(!$outsideOn || $lowerTempReached){
+				$this->LogMessage("Switching AC off", KL_INFO);
+				$this->RequestAction('t_power', false, true);
+			}else if(!$presenceOn && !$this->ReadAttributeBoolean('OffTimerEnabled')){
+				$this->EnableOffTimer();
+			}
+		}else{
+			//Device is off - check if we should turn on
+			if(!$presenceOn || !$outsideOn || !$upperTempReached) return;
+			$this->LogMessage("Switching AC on", KL_INFO);
+			$this->DisableOffTimer();
+			$this->RequestAction('t_power', true, true);
+			$this->RequestAction('t_temp', $this->GetValue('TargetTemperature'));
+			$this->RequestAction('t_work_mode', 2); //Cooling
+		}
+	}
+
+	private function EnableOffTimer(){
+		$presTrail = $this->ReadPropertyInteger('PresenceTrailing');
+		if($presTrail > 0){
+			$this->LogMessage("Switching AC off delayed because not present anymore", KL_INFO);
+			$this->SetTimerIntervall('OffTimer', $presTrail * 60000);
+			$this->WriteAttributeBoolean('OffTimerEnabled', true);
+		}else{
+			$this->LogMessage("Switching AC off because not present anymore", KL_INFO);
+			$this->SetTimerIntervall('OffTimer', 0);
+			$this->WriteAttributeBoolean('OffTimerEnabled', false);
+			$this->RequestAction('t_power', false, true);
+		}
+	}
+
+	private function DisableOffTimer(){
+		$this->SetTimerIntervall('OffTimer', 0);
+		$this->WriteAttributeBoolean('OffTimerEnabled', false);
+	}
+
+	public function RequestAction($Ident, $Value, $Automatic = false) {
 		$splitter = $this->GetSplitter();
 		$ins = IPS_GetInstance($splitter);
 		if($ins['InstanceStatus'] <> 102){
@@ -151,6 +233,7 @@ class HisenseACDevice extends IPSModule {
 				break;
 
 			case 't_power':
+				if(!$Automatic) $this->SetValue('AutoCooling', false);
 			case 't_backlight':
 			case 't_eco':
 			case 't_fan_leftright':
@@ -173,7 +256,25 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function GetConfigurationForm(){
-		return '{}';
+		return '{
+			"elements":
+			[
+				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": {
+					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperature" },
+					{ "type": "NumberSpinner", "name": "OnHysteresis", "caption": "OnHysteresis", "digits": 1, "suffix": "°C" },
+					{ "type": "NumberSpinner", "name": "OffHysteresis", "caption": "OffHysteresis", "digits": 1, "suffix": "°C" }
+				}},
+				{ "type": "ExpansionPanel", "caption": "AutoOutsideTemperature", "items": {
+					{ "type": "SelectVariable", "name": "OutsideTemperature", "caption": "OutsideTemperature" },
+					{ "type": "NumberSpinner", "name": "OutsideMinimumTemperature", "caption": "OutsideMinimumTemperature", "digits": 1, "suffix": "°C" }
+					
+				}},
+				{ "type": "ExpansionPanel", "caption": "AutoPresence", "items": {
+					{ "type": "SelectVariable", "name": "PresenceVariable", "caption": "PresenceVariable" },
+					{ "type": "NumberSpinner", "name": "PresenceTrailing", "caption": "PresenceTrailing", "suffix": "min" }
+				}}
+			]
+		}';;
 	}
 
 	public function Update(){

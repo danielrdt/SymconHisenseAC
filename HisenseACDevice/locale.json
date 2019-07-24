@@ -16,7 +16,17 @@
 				 "cooling": "Kühlen",
 				 "drying": "Trocknen",
 				 "auto": "Automatik",
-				 "Cloud not connected": "Cloud nicht verbunden"
+				 "Cloud not connected": "Cloud nicht verbunden",
+				 "RoomTemperature": "Raumtemperatur",
+				 "OutsideTemperature": "Aussentemperatur",
+				 "PresenceVariable": "Präsenz",
+				 "OnHysteresis": "Hysterese für Einschalten",
+				 "OffHysteresis": "Hysterese für Ausschalten",
+				 "OutsideMinimumTemperature": "Minimale Aussentemperatur",
+				 "PresenceTrailing": "Präsenz Nachlauf",
+				 "AutoRoomTemperature": "Raumtemperatur Automatik",
+				 "AutoOutsideTemperature": "Aussentemperatur Automatik",
+				 "AutoPresence": "Präsenz Automatik"
 		}
 	}
 }

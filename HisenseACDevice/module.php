@@ -314,7 +314,7 @@ class HisenseACDevice extends IPSModule {
 				case 't_temp':
 					$oldVal = $val;
 					$val = $this->FahrenheitToCelsius($val);
-					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C");
+					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C", 0);
 					break;
 			}
 			$this->SetValue($propName, $val);

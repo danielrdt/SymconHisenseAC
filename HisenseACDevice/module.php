@@ -177,16 +177,16 @@ class HisenseACDevice extends IPSModule {
 	private function CheckAutocool(){
 		$this->SendDebug("CheckAutocool", "Start", 0);
 		if(!$this->GetValue('AutoCooling')) return; //Autocooling disabled
-		$outsideOn = $this->ReadPropertyInteger('OutsideTemperature') > 0 ? GetValueFloat($this->ReadPropertyInteger('OutsideTemperature')) < $this->ReadPropertyInteger('OutsideMinimumTemperature') : true;
+		$outsideOn = $this->ReadPropertyInteger('OutsideTemperature') > 0 ? GetValueFloat($this->ReadPropertyInteger('OutsideTemperature')) < $this->ReadPropertyFloat('OutsideMinimumTemperature') : true;
 		$roomTempId = $this->ReadPropertyInteger('RoomTemperature') > 0 ? $this->ReadPropertyInteger('RoomTemperature') : $this->GetIDForIdent('f_temp_in');
 		$roomTemp = GetValueFloat($roomTempId);
-		$upperTempReached = $roomTemp > ($this->GetValue('TargetTemperature') + $this->ReadPropertyInteger('OnHysteresis'));
-		$lowerTempReached = $roomTemp < ($this->GetValue('TargetTemperature') - $this->ReadPropertyInteger('OffHysteresis'));
+		$upperTempReached = $roomTemp > ($this->GetValue('TargetTemperature') + $this->ReadPropertyFloat('OnHysteresis'));
+		$lowerTempReached = $roomTemp < ($this->GetValue('TargetTemperature') - $this->ReadPropertyFloat('OffHysteresis'));
 		$presenceOn = $this->ReadPropertyInteger('PresenceVariable') > 0 ? GetValueBoolean($this->ReadPropertyInteger('PresenceVariable')) : true;
 		if($this->GetValue('t_power')){
 			//Device is on - check if we should turn off
 			if(!$outsideOn || $lowerTempReached){
-				$this->LogMessage("Switching AC off", KL_INFO);
+				$this->LogMessage("Switching AC off", KL_MESSAGE);
 				$this->RequestAction('t_power', false, true);
 			}else if(!$presenceOn && !$this->ReadAttributeBoolean('OffTimerEnabled')){
 				$this->EnableOffTimer();
@@ -194,7 +194,7 @@ class HisenseACDevice extends IPSModule {
 		}else{
 			//Device is off - check if we should turn on
 			if(!$presenceOn || !$outsideOn || !$upperTempReached) return;
-			$this->LogMessage("Switching AC on", KL_INFO);
+			$this->LogMessage("Switching AC on", KL_MESSAGE);
 			$this->DisableOffTimer();
 			$this->RequestAction('t_power', true, true);
 			$this->RequestAction('t_temp', $this->GetValue('TargetTemperature'));
@@ -205,11 +205,11 @@ class HisenseACDevice extends IPSModule {
 	private function EnableOffTimer(){
 		$presTrail = $this->ReadPropertyInteger('PresenceTrailing');
 		if($presTrail > 0){
-			$this->LogMessage("Switching AC off delayed because not present anymore", KL_INFO);
+			$this->LogMessage("Switching AC off delayed because not present anymore", KL_MESSAGE);
 			$this->SetTimerIntervall('OffTimer', $presTrail * 60000);
 			$this->WriteAttributeBoolean('OffTimerEnabled', true);
 		}else{
-			$this->LogMessage("Switching AC off because not present anymore", KL_INFO);
+			$this->LogMessage("Switching AC off because not present anymore", KL_MESSAGE);
 			$this->SetTimerIntervall('OffTimer', 0);
 			$this->WriteAttributeBoolean('OffTimerEnabled', false);
 			$this->RequestAction('t_power', false, true);

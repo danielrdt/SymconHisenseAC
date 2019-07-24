@@ -254,7 +254,7 @@ class HisenseACDevice extends IPSModule {
 			case "TargetTemperature":
 				$this->SetValue($Ident, $SetValue);
 				$this->CheckAutocool();
-				break;
+				return;
 
 			default:
 				throw new Exception("Invalid Ident");

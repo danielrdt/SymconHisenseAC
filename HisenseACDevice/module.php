@@ -148,8 +148,6 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function MessageSink($TimeStamp, $SenderID, $Message, $Data){
-		$this->SendDebug("MessageSink", "Message from SenderID ".$SenderID." with Message ".$Message."\r\n Data: ".print_r($Data, true),0);
-
 		$roomTempId = $this->ReadPropertyInteger('RoomTemperature') > 0 ? $this->ReadPropertyInteger('RoomTemperature') : $this->GetIDForIdent('f_temp_in');
 
 		switch($SenderID){
@@ -168,9 +166,12 @@ class HisenseACDevice extends IPSModule {
 			case $this->GetIDForIdent('AutoCooling'):
 			case $this->ReadPropertyInteger('OutsideTemperature'):
 			case $this->ReadPropertyInteger('PresenceVariable'):
-				if($Message != VM_UPDATE) break;
+				if($Message != VM_UPDATE || !$Data[1]) break; //$Data[1] = Variable changed
 				$this->CheckAutocool();
 				break;
+
+			default:
+				$this->SendDebug("MessageSink", "Message from SenderID ".$SenderID." with Message ".$Message."\r\n Data: ".print_r($Data, true),0);
 		}
 	}
 

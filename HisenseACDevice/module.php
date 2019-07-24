@@ -183,7 +183,9 @@ class HisenseACDevice extends IPSModule {
 		$upperTempReached = $roomTemp > ($this->GetValue('TargetTemperature') + $this->ReadPropertyFloat('OnHysteresis'));
 		$lowerTempReached = $roomTemp < ($this->GetValue('TargetTemperature') - $this->ReadPropertyFloat('OffHysteresis'));
 		$presenceOn = $this->ReadPropertyInteger('PresenceVariable') > 0 ? GetValueBoolean($this->ReadPropertyInteger('PresenceVariable')) : true;
-		if($this->GetValue('t_power')){
+		$currentPower = $this->GetValue('t_power');
+		$this->SendDebug("Power: $currentPower ; CheckAutocool", "OutsideOn: $outsideOn ; UpperTempReached: $upperTempReached ; LowerTempReached: $lowerTempReached ; Presence: $presenceOn", 0);
+		if($currentPower){
 			//Device is on - check if we should turn off
 			if(!$outsideOn || $lowerTempReached){
 				$this->LogMessage("Switching AC off", KL_MESSAGE);
@@ -253,7 +255,6 @@ class HisenseACDevice extends IPSModule {
 			case "AutoCooling":
 			case "TargetTemperature":
 				$this->SetValue($Ident, $SetValue);
-				$this->CheckAutocool();
 				return;
 
 			default:

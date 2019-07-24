@@ -208,18 +208,18 @@ class HisenseACDevice extends IPSModule {
 		$presTrail = $this->ReadPropertyInteger('PresenceTrailing');
 		if($presTrail > 0){
 			$this->LogMessage("Switching AC off delayed because not present anymore", KL_MESSAGE);
-			$this->SetTimerIntervall('OffTimer', $presTrail * 60000);
+			$this->SetTimerInterval('OffTimer', $presTrail * 60000);
 			$this->WriteAttributeBoolean('OffTimerEnabled', true);
 		}else{
 			$this->LogMessage("Switching AC off because not present anymore", KL_MESSAGE);
-			$this->SetTimerIntervall('OffTimer', 0);
+			$this->SetTimerInterval('OffTimer', 0);
 			$this->WriteAttributeBoolean('OffTimerEnabled', false);
 			$this->RequestAction('t_power', false, true);
 		}
 	}
 
 	private function DisableOffTimer(){
-		$this->SetTimerIntervall('OffTimer', 0);
+		$this->SetTimerInterval('OffTimer', 0);
 		$this->WriteAttributeBoolean('OffTimerEnabled', false);
 	}
 

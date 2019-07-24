@@ -175,6 +175,7 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	private function CheckAutocool(){
+		$this->SendDebug("CheckAutocool", "Start", 0);
 		if(!$this->GetValue('AutoCooling')) return; //Autocooling disabled
 		$outsideOn = $this->ReadPropertyInteger('OutsideTemperature') > 0 ? GetValueFloat($this->ReadPropertyInteger('OutsideTemperature')) < $this->ReadPropertyInteger('OutsideMinimumTemperature') : true;
 		$roomTempId = $this->ReadPropertyInteger('RoomTemperature') > 0 ? $this->ReadPropertyInteger('RoomTemperature') : $this->GetIDForIdent('f_temp_in');

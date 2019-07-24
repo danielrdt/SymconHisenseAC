@@ -53,9 +53,9 @@ class HisenseACDevice extends IPSModule {
 			IPS_SetVariableProfileAssociation($fanSpeedProfile, 9, "9", "", 0xC0C0C0);
 		}
 
-		$this->RegisterVariableFloat("f_temp_in", $this->Translate("f_temp_in"), "~Temperature.Room", 30);
+		$roomTempId = $this->RegisterVariableFloat("f_temp_in", $this->Translate("f_temp_in"), "~Temperature.Room", 30);
 		$this->RegisterVariableFloat("t_temp", $this->Translate("t_temp"), "~Temperature.Room", 20);
-		$this->RegisterVariableBoolean("t_power", $this->Translate("t_power"), "~Switch", 10);
+		$powerId = $this->RegisterVariableBoolean("t_power", $this->Translate("t_power"), "~Switch", 10);
 		$this->RegisterVariableBoolean("t_fan_leftright", $this->Translate("t_fan_leftright"), "~Switch", 60);
 		$this->RegisterVariableBoolean("t_fan_power", $this->Translate("t_fan_power"), "~Switch", 50);
 		$this->RegisterVariableBoolean("t_fan_mute", $this->Translate("t_fan_mute"), "~Switch", 80);
@@ -64,9 +64,9 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterVariableInteger("t_work_mode", $this->Translate("t_work_mode"), $workModeProfile, 15);
 		$this->RegisterVariableInteger("t_fan_speed", $this->Translate("t_fan_speed"), $fanSpeedProfile, 40);
 
-		$roomTempId = $this->RegisterAttributeInteger("f_temp_in", 0);
+		$this->RegisterAttributeInteger("f_temp_in", 0);
 		$this->RegisterAttributeInteger("t_temp", 0);
-		$powerId = $this->RegisterAttributeInteger("t_power", 0);
+		$this->RegisterAttributeInteger("t_power", 0);
 		$this->RegisterAttributeInteger("t_fan_leftright", 0);
 		$this->RegisterAttributeInteger("t_fan_power", 0);
 		$this->RegisterAttributeInteger("t_fan_mute", 0);
@@ -82,7 +82,7 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterPropertyFloat("OnHysteresis", 0.5);
 		$this->RegisterPropertyFloat("OffHysteresis", 2);
 		$this->RegisterPropertyFloat("OutsideMinimumTemperature", 18.0);
-		$this->RegisterPropertyInteger("RoomTemperature", $roomTempId);
+		$this->RegisterPropertyInteger("RoomTemperature", 0);
 		$this->RegisterPropertyInteger("OutsideTemperature", 0);
 		$this->RegisterPropertyInteger("PresenceVariable", 0);
 		$this->RegisterPropertyInteger("PresenceTrailing", 0);

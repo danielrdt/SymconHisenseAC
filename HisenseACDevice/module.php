@@ -199,8 +199,8 @@ class HisenseACDevice extends IPSModule {
 			$this->LogMessage("Switching AC on", KL_MESSAGE);
 			$this->DisableOffTimer();
 			$this->RequestAction('t_power', true, true);
-			$this->RequestAction('t_temp', $this->GetValue('TargetTemperature'));
 			$this->RequestAction('t_work_mode', 2); //Cooling
+			$this->RequestAction('t_temp', $this->GetValue('TargetTemperature'));
 		}
 	}
 
@@ -334,6 +334,7 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	private function SetDatapoint($Key, $Value){
+		$this->SendDebug("SetDatapoint", "Key: $Key; Value: $Value", 0);
 		$data = array(
 			"DataID"		=> "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}",
 			"command"		=> "SetDatapoint",

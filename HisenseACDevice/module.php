@@ -101,6 +101,9 @@ class HisenseACDevice extends IPSModule {
 		$this->EnableAction("t_work_mode");
 		$this->EnableAction("t_fan_speed");
 
+		$this->EnableAction("AutoCooling");
+		$this->EnableAction("TargetTemperature");
+
 		$splitter = $this->GetSplitter();
 		$this->RegisterMessage($splitter, IM_CHANGESTATUS);
 		$ins = IPS_GetInstance($splitter);
@@ -244,6 +247,12 @@ class HisenseACDevice extends IPSModule {
 			
 			case 't_fan_speed':
 			case 't_work_mode':
+				break;
+
+			case "AutoCooling":
+			case "TargetTemperature":
+				$this->SetValue($Ident, $SetValue);
+				$this->CheckAutocool();
 				break;
 
 			default:

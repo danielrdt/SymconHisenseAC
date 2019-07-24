@@ -259,20 +259,20 @@ class HisenseACDevice extends IPSModule {
 		return '{
 			"elements":
 			[
-				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": {
+				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
 					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperature" },
 					{ "type": "NumberSpinner", "name": "OnHysteresis", "caption": "OnHysteresis", "digits": 1, "suffix": "°C" },
 					{ "type": "NumberSpinner", "name": "OffHysteresis", "caption": "OffHysteresis", "digits": 1, "suffix": "°C" }
-				}},
-				{ "type": "ExpansionPanel", "caption": "AutoOutsideTemperature", "items": {
+				]},
+				{ "type": "ExpansionPanel", "caption": "AutoOutsideTemperature", "items": [
 					{ "type": "SelectVariable", "name": "OutsideTemperature", "caption": "OutsideTemperature" },
 					{ "type": "NumberSpinner", "name": "OutsideMinimumTemperature", "caption": "OutsideMinimumTemperature", "digits": 1, "suffix": "°C" }
 					
-				}},
-				{ "type": "ExpansionPanel", "caption": "AutoPresence", "items": {
+				]},
+				{ "type": "ExpansionPanel", "caption": "AutoPresence", "items": [
 					{ "type": "SelectVariable", "name": "PresenceVariable", "caption": "PresenceVariable" },
 					{ "type": "NumberSpinner", "name": "PresenceTrailing", "caption": "PresenceTrailing", "suffix": "min" }
-				}}
+				]}
 			]
 		}';;
 	}

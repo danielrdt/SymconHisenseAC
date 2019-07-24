@@ -133,7 +133,7 @@ class HisenseACDevice extends IPSModule {
 		// Diese Zeile nicht löschen
 		parent::ApplyChanges();
 
-		$this->RegisterMessage($this->GetIDForIdent('AutoCooling'), VM_UPDATE)
+		$this->RegisterMessage($this->GetIDForIdent('AutoCooling'), VM_UPDATE);
 		if($this->ReadPropertyInteger('RoomTemperature') > 0){
 			$this->RegisterMessage($this->ReadPropertyInteger('RoomTemperature'), VM_UPDATE);
 		}else{

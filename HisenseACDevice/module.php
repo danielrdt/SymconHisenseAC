@@ -361,6 +361,11 @@ class HisenseACDevice extends IPSModule {
 		$jsonData = json_decode($result);
 
 		$props = [];
+
+		if(!is_array($jsonData) && !is_object($jsonData)){
+			$this->LogMessage("Failed to get properties.", KL_WARNING);
+			return $props;
+		}
 		foreach($jsonData as $prop){
 			$propObj = $prop->property;
 			$props[$propObj->name] = $propObj;

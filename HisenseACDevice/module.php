@@ -45,6 +45,7 @@ class HisenseACDevice extends IPSModule {
 
 		$this->SetJSONBuffer("Registered", false);
 		$this->SetJSONBuffer("CommandQueue", []);
+		$this->SetJSONBuffer("NextCmdId", 0);
 
 		$workModeProfile = "HISENSEAC.".$this->insId.".WorkMode";
 		if(!IPS_VariableProfileExists($workModeProfile)) {

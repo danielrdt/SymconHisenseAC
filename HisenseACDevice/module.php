@@ -44,7 +44,7 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterAttributeInteger('LANKeyId', 0);
 
 		$this->SetBuffer("Registered", false);
-		$this->SetBuffer("CommandQueue", []);
+		$this->SetJSONBuffer("CommandQueue", []);
 
 		$workModeProfile = "HISENSEAC.".$this->insId.".WorkMode";
 		if(!IPS_VariableProfileExists($workModeProfile)) {
@@ -200,6 +200,17 @@ class HisenseACDevice extends IPSModule {
 		}
 	}
 
+	private function GetJSONBuffer($name)
+	{
+		$raw = $this->GetBuffer($name);
+		return json_decode($raw);
+	}
+
+	private function SetJSONBuffer($name, $value)
+	{
+		$this->SetBuffer(json_encode($value));
+	}
+
 	private function RegisterHook()
     {
 		$WebHook = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey");
@@ -341,7 +352,7 @@ class HisenseACDevice extends IPSModule {
 	public function Update(){
 		$this->SendDebug("Update", KL_DEBUG);
 
-		if(!$this->GetBuffer('Registered') && count($this->GetBuffer('CommandQueue')) == 0){
+		if(!$this->GetBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
 			$this->GetACProperty('f_temp_in', false);
 			$this->GetACProperty('t_temp', false);
 			$this->GetACProperty('t_power', false);
@@ -353,7 +364,7 @@ class HisenseACDevice extends IPSModule {
 			$this->GetACProperty('t_fan_speed', false);
 			$this->GetACProperty('t_work_mode', true);
 		}else{
-			$this->NotifyAC(count($this->GetBuffer('CommandQueue')) == 0 ? false : true);
+			$this->NotifyAC(count($this->GetJSONBuffer('CommandQueue')) == 0 ? false : true);
 		}
 	}
 
@@ -518,9 +529,9 @@ class HisenseACDevice extends IPSModule {
 			];
 			$this->SetBuffer('NextCmdId', $cmdId + 1);
 
-			$cmdQueue = $this->GetBuffer("CommandQueue");
+			$cmdQueue = $this->GetJSONBuffer("CommandQueue");
 			array_push($cmdQueue, $cmd);
-			$this->SetBuffer("CommandQueue", $cmdQueue);
+			$this->SetJSONBuffer("CommandQueue", $cmdQueue);
 		} finally {
 			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
 		}
@@ -556,9 +567,9 @@ class HisenseACDevice extends IPSModule {
 		
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
-			$cmdQueue = $this->GetBuffer("CommandQueue");
+			$cmdQueue = $this->GetJSONBuffer("CommandQueue");
 			array_push($cmdQueue, $cmd);
-			$this->SetBuffer("CommandQueue", $cmdQueue);
+			$this->SetJSONBuffer("CommandQueue", $cmdQueue);
 		} finally {
 			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
 		}
@@ -647,11 +658,11 @@ class HisenseACDevice extends IPSModule {
 
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
-			$cmdQueue = $this->GetBuffer("CommandQueue");
+			$cmdQueue = $this->GetJSONBuffer("CommandQueue");
 			if(count($cmdQueue) == 0) return;
 
 			$cmd = array_shift($cmdQueue);
-			$this->SetBuffer("CommandQueue", $cmdQueue);
+			$this->SetJSONBuffer("CommandQueue", $cmdQueue);
 
 			$seqNo = $this->GetBuffer('NextSequenceNo');
 			$this->SetBuffer('NextSequenceNo', $seqNo + 1);

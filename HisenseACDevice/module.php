@@ -204,7 +204,7 @@ class HisenseACDevice extends IPSModule {
 	private function GetJSONBuffer($name)
 	{
 		$raw = $this->GetBuffer($name);
-		$data = json_decode($raw);
+		$data = json_decode($raw, false, 512, JSON_THROW_ON_ERROR);
 		if($data->binary){
 			return base64_decode($data->data);
 		}

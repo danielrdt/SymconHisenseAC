@@ -208,7 +208,7 @@ class HisenseACDevice extends IPSModule {
 
 	private function SetJSONBuffer($name, $value)
 	{
-		$this->SetBuffer(json_encode($value));
+		$this->SetBuffer($name, json_encode($value));
 	}
 
 	private function RegisterHook()

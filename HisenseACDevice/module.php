@@ -2,6 +2,19 @@
 // Klassendefinition
 class HisenseACDevice extends IPSModule {
 
+	private const AC_PROPERTIES = [
+		'f_temp_in', 
+		't_temp', 
+		't_power', 
+		't_fan_leftright', 
+		't_fan_power', 
+		't_fan_mute', 
+		't_eco', 
+		't_backlight', 
+		't_work_mode', 
+		't_fan_speed'
+	];
+
 	private $insId = 0;
 
 	// Der Konstruktor des Moduls
@@ -18,11 +31,20 @@ class HisenseACDevice extends IPSModule {
 		// Diese Zeile nicht löschen.
 		parent::Create();
 
+		//We need to call the RegisterHook function on Kernel READY
+        $this->RegisterMessage(0, IPS_KERNELMESSAGE);
+
 		$this->ConnectParent("{1BE067BC-6499-49F2-A8C9-BB6DB6B4ADF6}");
 
 		//These lines are parsed on Symcon Startup or Instance creation
 		//You cannot use variables here. Just static values.
 		$this->RegisterPropertyInteger("DeviceKey", 0);
+		$this->RegisterAttributeString('LANKey', '');
+		$this->RegisterAttributeString('LANIP', '');
+		$this->RegisterAttributeInteger('LANKeyId', 0);
+
+		$this->SetBuffer("Registered", false);
+		$this->SetBuffer("CommandQueue", []);
 
 		$workModeProfile = "HISENSEAC.".$this->insId.".WorkMode";
 		if(!IPS_VariableProfileExists($workModeProfile)) {
@@ -64,16 +86,6 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterVariableInteger("t_work_mode", $this->Translate("t_work_mode"), $workModeProfile, 15);
 		$this->RegisterVariableInteger("t_fan_speed", $this->Translate("t_fan_speed"), $fanSpeedProfile, 40);
 
-		$this->RegisterAttributeInteger("f_temp_in", 0);
-		$this->RegisterAttributeInteger("t_temp", 0);
-		$this->RegisterAttributeInteger("t_power", 0);
-		$this->RegisterAttributeInteger("t_fan_leftright", 0);
-		$this->RegisterAttributeInteger("t_fan_power", 0);
-		$this->RegisterAttributeInteger("t_fan_mute", 0);
-		$this->RegisterAttributeInteger("t_eco", 0);
-		$this->RegisterAttributeInteger("t_backlight", 0);
-		$this->RegisterAttributeInteger("t_work_mode", 0);
-		$this->RegisterAttributeInteger("t_fan_speed", 0);
 		$this->RegisterAttributeBoolean("OffTimerEnabled", false);
 
 		//Automation
@@ -136,6 +148,11 @@ class HisenseACDevice extends IPSModule {
 		// Diese Zeile nicht löschen
 		parent::ApplyChanges();
 
+		//Only call this in READY state. On startup the WebHook instance might not be available yet
+        if (IPS_GetKernelRunlevel() == KR_READY) {
+            $this->RegisterHook();
+        }
+
 		$this->RegisterMessage($this->GetIDForIdent('AutoCooling'), VM_UPDATE);
 		if($this->ReadPropertyInteger('RoomTemperature') > 0){
 			$this->RegisterMessage($this->ReadPropertyInteger('RoomTemperature'), VM_UPDATE);
@@ -148,6 +165,14 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function MessageSink($TimeStamp, $SenderID, $Message, $Data){
+		//Never delete this line!
+		parent::MessageSink($TimeStamp, $SenderID, $Message, $Data);
+		
+		if ($Message == IPS_KERNELMESSAGE && $Data[0] == KR_READY) {
+			$this->RegisterHook();
+			return;
+        }
+
 		$roomTempId = $this->ReadPropertyInteger('RoomTemperature') > 0 ? $this->ReadPropertyInteger('RoomTemperature') : $this->GetIDForIdent('f_temp_in');
 
 		switch($SenderID){
@@ -158,7 +183,7 @@ class HisenseACDevice extends IPSModule {
 					$this->SetTimerInterval("UpdateTimer", 5000);
 					$this->Update();
 				}else{
-					$this->SetTimerInterval("UpdateTimer", 0);
+					$this->SetTimerInterval("UpdateTimer", 10000);
 				}
 				break;
 
@@ -174,6 +199,31 @@ class HisenseACDevice extends IPSModule {
 				$this->SendDebug("MessageSink", "Message from SenderID ".$SenderID." with Message ".$Message."\r\n Data: ".print_r($Data, true),0);
 		}
 	}
+
+	private function RegisterHook()
+    {
+		$WebHook = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey");
+
+        $ids = IPS_GetInstanceListByModuleID('{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}');
+        if (count($ids) > 0) {
+            $hooks = json_decode(IPS_GetProperty($ids[0], 'Hooks'), true);
+            $found = false;
+            foreach ($hooks as $index => $hook) {
+                if ($hook['Hook'] == $WebHook) {
+                    if ($hook['TargetID'] == $this->InstanceID) {
+                        return;
+                    }
+                    $hooks[$index]['TargetID'] = $this->InstanceID;
+                    $found = true;
+                }
+            }
+            if (!$found) {
+                $hooks[] = ['Hook' => $WebHook, 'TargetID' => $this->InstanceID];
+            }
+            IPS_SetProperty($ids[0], 'Hooks', json_encode($hooks));
+            IPS_ApplyChanges($ids[0]);
+        }
+    }
 
 	private function CheckAutocool(){
 		$this->SendDebug("CheckAutocool", "Start", 0);
@@ -227,7 +277,7 @@ class HisenseACDevice extends IPSModule {
 	public function RequestAction($Ident, $Value, $Automatic = false) {
 		$splitter = $this->GetSplitter();
 		$ins = IPS_GetInstance($splitter);
-		if($ins['InstanceStatus'] <> 102){
+		if(!$this->GetBuffer('Registered') && $ins['InstanceStatus'] <> 102){
 			$this->LogMessage("Could not send command because cloud not connected", KL_ERROR);
 			throw new Exception($this->Translate("Cloud not connected"));
 		}
@@ -262,9 +312,8 @@ class HisenseACDevice extends IPSModule {
 				throw new Exception("Invalid Ident");
 		}
 
-		$this->SetDatapoint($this->ReadAttributeInteger($Ident), $Value);
+		$this->SetACProperty($Ident, $Value);
 		$this->SetValue($Ident, $SetValue);
-		$this->SetTimerInterval("UpdateTimer", 5000);
 	}
 
 	public function GetConfigurationForm(){
@@ -290,34 +339,21 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function Update(){
-		$this->SetTimerInterval("UpdateTimer", 60000);
+		$this->SendDebug("Update", KL_DEBUG);
 
-		$props = $this->GetProperties([
-			'f_temp_in', 		//Temperatursensor
-			't_temp',			//Zieltemperatur
-			't_power',			//Ein/Aus
-			't_backlight',		//Display
-			't_eco',			//ECO Mode
-			't_fan_leftright',	//Horizontal Swing
-			't_fan_mute',		//Quiet Mode
-			't_fan_power',		//Vertikal Swing
-			't_fan_speed',		//Lüfter Geschwindigkeit Max 9
-			't_work_mode'		//Betriebsmodus
-		]);
-
-		foreach($props as $propName => $prop){
-			//Cache the Property Key
-			$this->WriteAttributeInteger($propName, $prop->key);
-			$val = $prop->value;
-			switch($propName){
-				case 'f_temp_in':
-				case 't_temp':
-					$oldVal = $val;
-					$val = $this->FahrenheitToCelsius($val);
-					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C", 0);
-					break;
-			}
-			$this->SetValue($propName, $val);
+		if(!$this->GetBuffer('Registered') && count($this->GetBuffer('CommandQueue')) == 0){
+			$this->GetACProperty('f_temp_in', false);
+			$this->GetACProperty('t_temp', false);
+			$this->GetACProperty('t_power', false);
+			$this->GetACProperty('t_backlight', false);
+			$this->GetACProperty('t_eco', false);
+			$this->GetACProperty('t_fan_leftright', false);
+			$this->GetACProperty('t_fan_mute', false);
+			$this->GetACProperty('t_fan_power', false);
+			$this->GetACProperty('t_fan_speed', false);
+			$this->GetACProperty('t_work_mode', true);
+		}else{
+			$this->NotifyAC(count($this->GetBuffer('CommandQueue')) == 0 ? false : true);
 		}
 	}
 
@@ -336,42 +372,53 @@ class HisenseACDevice extends IPSModule {
         return $SplitterID;
 	}
 
-	private function SetDatapoint($Key, $Value){
-		$this->SendDebug("SetDatapoint", "Key: $Key; Value: $Value", 0);
-		$data = array(
-			"DataID"		=> "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}",
-			"command"		=> "SetDatapoint",
-			"DatapointKey"	=> $Key,
-			"DatapointValue"=> $Value
-		);
-		$data_string = json_encode($data);
-		$result = $this->SendDataToParent($data_string);
-	}
-
-	private function GetProperties($Properties){
+	private function GetDeviceIP()
+	{
 		$data = array(
 			"DataID"	=> "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}",
-			"command"	=> "GetProperties",
-			"DeviceKey"	=> $this->ReadPropertyInteger("DeviceKey"),
-			"Properties"=> $Properties
+			"command"	=> "GetDevices"
 		);
 		$data_string = json_encode($data);
 		$result = $this->SendDataToParent($data_string);
 		
 		$jsonData = json_decode($result);
 
-		$props = [];
+		if(!is_array($jsonData) && !is_object($jsonData)){
+			$this->LogMessage("Failed to get devices.", KL_WARNING);
+			return;
+		}
+
+		foreach($jsonData as $dev){
+			$device = $dev->device;
+			if(!$device->key == $this->ReadPropertyInteger("DeviceKey")) continue;
+			
+			$this->SetAttributeString('LANIP', $device->lan_ip);
+			$this->LogMessage("Got LAN IP ".$device->lan_ip, KL_INFO);
+			break;
+		}
+	}
+
+	private function GetLANKey()
+	{
+		$data = array(
+			"DataID"	=> "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}",
+			"command"	=> "GetLANKey",
+			'DeviceKey' => $this->ReadPropertyInteger("DeviceKey")
+		);
+		$data_string = json_encode($data);
+		$result = $this->SendDataToParent($data_string);
+		
+		$jsonData = json_decode($result);
 
 		if(!is_array($jsonData) && !is_object($jsonData)){
-			$this->LogMessage("Failed to get properties.", KL_WARNING);
-			return $props;
-		}
-		foreach($jsonData as $prop){
-			$propObj = $prop->property;
-			$props[$propObj->name] = $propObj;
+			$this->LogMessage("Failed to get devices.", KL_WARNING);
+			return;
 		}
 
-		return $props;
+		$this->SetAttributeString('LANKey', $jsonData->lanip_key);
+		$this->SetAttributeString('LANKeyId', $jsonData->lanip_key_id);
+
+		$this->LogMessage("Got LAN Key ".$jsonData->lanip_key_id.": ".$jsonData->lanip_key, KL_INFO);
 	}
 
 	private function FahrenheitToCelsius($given_value){
@@ -406,5 +453,300 @@ class HisenseACDevice extends IPSModule {
             }
         }
         IPS_DeleteVariableProfile($Name);
-    }
+	}
+
+	private function NotifyAC($hasCmdsInQueue = false)
+	{
+		$this->SetTimerInterval("UpdateTimer", 10000);
+
+		if(!$this->ReadAttributeString('LANIP')){
+			$this->GetDeviceIP();
+		}
+		if(!$this->ReadAttributeInteger('LANKeyId')){
+			$this->GetLANKey();
+		}
+
+		$ch = curl_init('http://'.$this->ReadAttributeString('LANIP').'/local_reg.json');
+		if($this->GetBuffer('Registered')){
+			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+		} else {
+			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		}
+		
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+		$data = [
+			'local_reg' => [
+				'ip' 	=> '10.87.17.230',
+				'port'	=> 80,
+				'uri'	=> '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey"),
+				'notify'=> $hasCmdsInQueue ? 1 : 0
+				]
+			];
+			
+		$data_json = json_encode($data);
+		$this->SendDebug("NotifyAC", $data_json, KL_DEBUG);
+
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_json);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Content-Type: application/json',
+			'Content-Length: '.strlen($data_json)
+		]);
+
+		curl_exec($ch);
+		curl_close($ch);
+	}
+
+	public function GetACProperty($property, $notify = true)
+	{
+		$this->SendDebug("GetACProperty", $property, KL_DEBUG);
+		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
+		try{
+			$cmdId = $this->GetBuffer('NextCmdId');
+			$cmd = [
+				'cmds' => [
+					[
+						'cmd' => [
+							'cmd_id'    => $cmdId,
+							'method'    => 'GET',
+							'resource'  => 'property.json?name='.$property,
+							'data'      => '',
+							'uri'       => '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/property/datapoint.json'
+						]
+					]
+				]
+			];
+			$this->SetBuffer('NextCmdId', $cmdId + 1);
+
+			$cmdQueue = $this->GetBuffer("CommandQueue");
+			array_push($cmdQueue, $cmd);
+			$this->SetBuffer("CommandQueue", $cmdQueue);
+		} finally {
+			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
+		}
+
+		if($notify) $this->NotifyAC(true);
+	}
+
+	public function SetACProperty($property, $value)
+	{
+		$this->SendDebug("SetACProperty", $property, KL_DEBUG);
+		if(!in_array($property, AC_PROPERTIES)) throw new Exception('Unknown property');
+		$baseType = 'boolean';
+		switch($property){
+			case 't_fan_speed':
+			case 't_sleep':
+			case 't_temp':
+			case 't_work_mode':
+				$baseType = 'integer';
+				break;
+		}
+
+		$cmd = [
+			'properties' => [
+				[
+					'property' => [
+						'base_type' => $baseType,
+						'value'  	=> $value,
+						'name'      => $property
+					]
+				]
+			]
+		];
+		
+		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
+		try{
+			$cmdQueue = $this->GetBuffer("CommandQueue");
+			array_push($cmdQueue, $cmd);
+			$this->SetBuffer("CommandQueue", $cmdQueue);
+		} finally {
+			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
+		}
+
+		$this->NotifyAC(true);
+	}
+
+	/**
+     * This function will be called by the hook control. Visibility should be protected!
+     */
+    protected function ProcessHookData()
+    {
+		$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI'], KL_DEBUG);
+		$hookBase = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/';
+		$input = file_get_contents("php://input");
+		$input_json = json_decode($input);
+
+		switch($_SERVER['REQUEST_URI']){
+			case $hookBase.'key_exchange.json':
+				$result = ProcessKeyExchange($input_json->key_exchange->random_1, $input_json->key_exchange->time_1, $input_json->key_exchange->key_id);
+				break;
+
+			case $hookBase.'commands.json':
+				$result = GetCommand();
+				break;
+
+			case $hookBase.'property/datapoint.json':
+				ProcessDatapoint($input_json);
+				break;
+
+			case $hookBase.'fin.json':
+				$this->SetBuffer('Registered', false);
+				break;
+		}
+		
+		if($result){
+			$result_raw = json_encode($result, JSON_UNESCAPED_SLASHES);
+			header("Content-type: application/json");
+			echo $result_raw;
+		}else{
+			$result_raw = json_encode([]);
+			header("HTTP/1.1 204 Empty");
+			header("Content-type: application/json");
+			echo $result_raw;
+		}
+	}
+
+	private function ProcessDatapoint($input_json)
+	{
+		$this->SendDebug("ProcessDatapoint", "", KL_DEBUG);
+		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
+		try{
+			$seq_raw = openssl_decrypt($input_json->enc, 'AES-256-CBC', $this->GetBuffer('KeyDevEnc'), OPENSSL_ZERO_PADDING, $this->GetBuffer('KeyDevIV'));
+			//Set IV
+			$this->SetBuffer('KeyDevIV', substr(base64_decode($input_json->enc), -16));
+
+			//Signature not checked yet -> TODO
+
+			$seq_json = rtrim($seq_raw, chr(0)); 
+			$seq = json_decode($seq_json, false, 512, JSON_THROW_ON_ERROR);
+
+			if(!in_array($seq->data->name, AC_PROPERTIES)) return;
+
+			$val = $seq->data->value;
+
+			switch($seq->data->name){
+				case 'f_temp_in':
+				case 't_temp':
+					$oldVal = $val;
+					$val = $this->FahrenheitToCelsius($oldVal);
+					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C", 0);
+					break;
+
+			}
+
+			$this->SetValue($seq->data->name, $val);
+		} finally {
+			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
+		}
+	}
+	
+	private function GetCommand()
+	{
+		$this->SendDebug("GetCommand", "", KL_DEBUG);
+		if(!$this->GetBuffer("Registered")) return;
+
+		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
+		try{
+			$cmdQueue = $this->GetBuffer("CommandQueue");
+			if(count($cmdQueue) == 0) return;
+
+			$cmd = array_shift($cmdQueue);
+			$this->SetBuffer("CommandQueue", $cmdQueue);
+
+			$seqNo = $this->GetBuffer('NextSequenceNo');
+			$this->SetBuffer('NextSequenceNo', $seqNo + 1);
+
+			$seq = [
+				'seq_no' => $seqNo,
+				'data'   => $cmd
+			];
+			$seq_json = utf8_encode(json_encode($seq, JSON_UNESCAPED_SLASHES));
+			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetBuffer('KeyAppIV'));
+			//Set IV
+			$this->SetBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16));
+
+			$sign = hash_hmac('sha256', $seq_json, $this->GetBuffer('KeyAppSign'), true);
+
+			$result = [
+				'enc'   => $seq_enc,
+				'sign'  => base64_encode($sign)
+			];
+
+			return $result;
+		} finally {
+			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
+		}
+	}
+
+	private function ProcessKeyExchange($random1, $time1, $keyId)
+	{
+		$this->SendDebug("ProcessKeyExchange", "", KL_DEBUG);
+		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
+		try{
+			$this->SetBuffer("Registered", false);
+
+			if(!$keyId == $this->GetAttributeInteger('LANKeyId')){
+				$this->SendDebug("Received unknown LAN Key Id while key exchange - renew keys via cloud", KL_WARNING);
+				$this->GetLANKey();
+			}
+
+			$random2 = utf8_encode(generateRandomString(16));
+			$time2 = utf8_encode(time());
+
+			$secret = utf8_encode($this->GetAttributeString('LANKey'));
+
+			$sign_app_seed = $random1.$random2.$time1.$time2.'0';
+			$enc_app_seed  = $random1.$random2.$time1.$time2.'1';
+			$iv_app_seed   = $random1.$random2.$time1.$time2.'2';
+
+			$sign_app_key = hash_hmac('sha256', hash_hmac('sha256', $sign_app_seed, $secret, true).$sign_app_seed, $secret, true);
+			$enc_app_key  = hash_hmac('sha256', hash_hmac('sha256', $enc_app_seed, $secret, true).$enc_app_seed, $secret, true);
+			$iv_app_key   = hash_hmac('sha256', hash_hmac('sha256', $iv_app_seed, $secret, true).$iv_app_seed, $secret, true);
+
+			$sign_dev_seed = $random2.$random1.$time2.$time1.'0';
+			$enc_dev_seed  = $random2.$random1.$time2.$time1.'1';
+			$iv_dev_seed   = $random2.$random1.$time2.$time1.'2';
+
+			$sign_dev_key = hash_hmac('sha256', hash_hmac('sha256', $sign_dev_seed, $secret, true).$sign_dev_seed, $secret, true);
+			$enc_dev_key  = hash_hmac('sha256', hash_hmac('sha256', $enc_dev_seed, $secret, true).$enc_dev_seed, $secret, true);
+			$iv_dev_key   = hash_hmac('sha256', hash_hmac('sha256', $iv_dev_seed, $secret, true).$iv_dev_seed, $secret, true);
+
+			$this->SetBuffer("NextSequenceNo", 0);
+			$this->SetBuffer("NextCmdId", 0);
+			$this->SetBuffer("KeyAppSign", $sign_app_key);
+			$this->SetBuffer("KeyAppEnc", $enc_app_key);
+			$this->SetBuffer("KeyAppIV", substr($iv_app_key, 0, 16));
+			$this->SetBuffer("KeyDevSign", $sign_dev_key);
+			$this->SetBuffer("KeyDevEnc", $enc_dev_key);
+			$this->SetBuffer("KeyDevIV", substr($iv_dev_key, 0, 16));
+			$this->SetBuffer("Registered", true);
+
+			$return = [
+				'random_2'  => $random2,
+				'time_2'    => $time2
+			];
+
+			return $return;
+		} finally {
+			IPS_SemaphoreLeave('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"));
+		}	
+	}
+	
+	private function Pad($text, $block_size = 16)
+	{
+		$rest = strlen($text) % $block_size;
+		$to_pad = $rest == 0 ? 0 : $block_size - $rest;
+		return str_pad($text, strlen($text) + $to_pad, chr(0));
+	}
+
+	private function GenerateRandomString($length = 16)
+	{
+		$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		$charactersLength = strlen($characters);
+		$randomString = '';
+		for ($i = 0; $i < $length; $i++) {
+			$randomString .= $characters[rand(0, $charactersLength - 1)];
+		}
+		return $randomString;
+	}
 }

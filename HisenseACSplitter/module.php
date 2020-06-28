@@ -228,6 +228,25 @@ class HisenseACSplitter extends IPSModule {
 		return $result;
 	}
 
+	private function GetLANKey($DeviceKey){
+		$names = [];
+		foreach($Properties as $property){
+			$names[] = urlencode('names[]').'='.$property;
+		}
+
+		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/devices/$DeviceKey/lan.json");
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Authorization: auth_token'.$this->ReadAttributeString("AuthToken")
+		]);
+
+		$result = curl_exec($ch);
+		curl_close($ch);
+
+		return $result;
+	}
+
 	private function SetDatapoint($Key, $Value){
 		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/properties/$Key/datapoints.json");
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
@@ -266,11 +285,15 @@ class HisenseACSplitter extends IPSModule {
 				switch($json->command){
 					case 'GetProperties':
 						return $this->GetProperties($json->DeviceKey, $json->Properties);
-						break;
 
 					case 'SetDatapoint':
 						return $this->SetDatapoint($json->DatapointKey, $json->DatapointValue);
-						break;
+
+					case 'GetLANKey':
+						return $this->GetLANKey($json->DeviceKey);
+
+					case 'GetDevices':
+						return $this->GetDevices();
 				}
 				break;
 		}

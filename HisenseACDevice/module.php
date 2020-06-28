@@ -204,12 +204,19 @@ class HisenseACDevice extends IPSModule {
 	private function GetJSONBuffer($name)
 	{
 		$raw = $this->GetBuffer($name);
-		return json_decode($raw);
+		$data = json_decode($raw);
+		return $data->data;
 	}
 
 	private function SetJSONBuffer($name, $value)
 	{
-		$this->SetBuffer($name, json_encode($value));
+		$type = 'other';
+		if(is_string($value)) $type = 'string';
+		$data = [
+			'type' => $type,
+			'data' => $value
+		];
+		$this->SetBuffer($name, json_encode($data));
 	}
 
 	private function RegisterHook()
@@ -520,6 +527,7 @@ class HisenseACDevice extends IPSModule {
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
 			$cmdId = $this->GetJSONBuffer('NextCmdId');
+			$cmdId = $cmdId ? $cmdId : 0;
 			$cmd = [
 				'cmds' => [
 					[
@@ -616,13 +624,13 @@ class HisenseACDevice extends IPSModule {
 			if($result){
 				$result_raw = json_encode($result, JSON_UNESCAPED_SLASHES);
 				header("Content-type: application/json");
-				echo $result_raw;
+				echo utf8_encode($result_raw);
 				$this->SendDebug("ProcessHookData", "Result: ".$result_raw, 0);
 			}else{
 				$result_raw = json_encode([]);
 				header("HTTP/1.1 204 Empty");
 				header("Content-type: application/json");
-				echo $result_raw;
+				echo utf8_encode($result_raw);
 				$this->SendDebug("ProcessHookData", "Emtpy Result".$result_raw, 0);
 			}
 		} catch (Exception $e) {
@@ -681,6 +689,7 @@ class HisenseACDevice extends IPSModule {
 			}
 
 			$seqNo = $this->GetJSONBuffer('NextSequenceNo');
+			$seqNo = $seqNo ? $seqNo : 0;
 			$this->SetJSONBuffer('NextSequenceNo', $seqNo + 1);
 
 			$seq = [
@@ -689,6 +698,7 @@ class HisenseACDevice extends IPSModule {
 			];
 			$seq_json = utf8_encode(json_encode($seq, JSON_UNESCAPED_SLASHES));
 			$this->SendDebug("GetCommand", "Prepared sequence: ".$seq_json, 0);
+			$this->SendDebug("Key2", $this->GetJSONBuffer('KeyAppEnc'), 1);
 			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetJSONBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyAppIV'));
 			//Set IV
 			$this->SetJSONBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16));
@@ -748,6 +758,9 @@ class HisenseACDevice extends IPSModule {
 			$this->SetJSONBuffer("KeyDevEnc", $enc_dev_key);
 			$this->SetJSONBuffer("KeyDevIV", substr($iv_dev_key, 0, 16));
 			$this->SetJSONBuffer("Registered", true);
+
+			$this->SendDebug("Key1", $enc_app_key, 1);
+			$this->SendDebug("Key3", $this->GetJSONBuffer('KeyAppEnc'), 1);
 
 			$return = [
 				'random_2'  => $random2,

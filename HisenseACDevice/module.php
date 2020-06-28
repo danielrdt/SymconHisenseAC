@@ -205,18 +205,21 @@ class HisenseACDevice extends IPSModule {
 	{
 		$raw = $this->GetBuffer($name);
 		$data = json_decode($raw);
+		if($data->binary){
+			return base64_decode($data->data);
+		}
 		return $data->data;
 	}
 
-	private function SetJSONBuffer($name, $value)
+	private function SetJSONBuffer($name, $value, $binary = false)
 	{
-		$type = 'other';
-		if(is_string($value)) $type = 'string';
+		if($binary) $value = base64_encode($value);
 		$data = [
-			'type' => $type,
-			'data' => $value
+			'data' 	=> $value,
+			'binary'=> $binary
 		];
-		$this->SetBuffer($name, json_encode($data));
+		$json = json_encode($data);
+		$this->SetBuffer($name, $json);
 	}
 
 	private function RegisterHook()
@@ -645,7 +648,7 @@ class HisenseACDevice extends IPSModule {
 		try{
 			$seq_raw = openssl_decrypt($input_json->enc, 'AES-256-CBC', $this->GetJSONBuffer('KeyDevEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyDevIV'));
 			//Set IV
-			$this->SetJSONBuffer('KeyDevIV', substr(base64_decode($input_json->enc), -16));
+			$this->SetJSONBuffer('KeyDevIV', substr(base64_decode($input_json->enc), -16), true);
 
 			//Signature not checked yet -> TODO
 
@@ -701,7 +704,7 @@ class HisenseACDevice extends IPSModule {
 			$this->SendDebug("Key2", $this->GetJSONBuffer('KeyAppEnc'), 1);
 			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetJSONBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyAppIV'));
 			//Set IV
-			$this->SetJSONBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16));
+			$this->SetJSONBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16), true);
 
 			$sign = hash_hmac('sha256', $seq_json, $this->GetJSONBuffer('KeyAppSign'), true);
 
@@ -751,12 +754,12 @@ class HisenseACDevice extends IPSModule {
 
 			$this->SetJSONBuffer("NextSequenceNo", 0);
 			$this->SetJSONBuffer("NextCmdId", 0);
-			$this->SetJSONBuffer("KeyAppSign", $sign_app_key);
-			$this->SetJSONBuffer("KeyAppEnc", $enc_app_key);
-			$this->SetJSONBuffer("KeyAppIV", substr($iv_app_key, 0, 16));
-			$this->SetJSONBuffer("KeyDevSign", $sign_dev_key);
-			$this->SetJSONBuffer("KeyDevEnc", $enc_dev_key);
-			$this->SetJSONBuffer("KeyDevIV", substr($iv_dev_key, 0, 16));
+			$this->SetJSONBuffer("KeyAppSign", $sign_app_key, true);
+			$this->SetJSONBuffer("KeyAppEnc", $enc_app_key, true);
+			$this->SetJSONBuffer("KeyAppIV", substr($iv_app_key, 0, 16), true);
+			$this->SetJSONBuffer("KeyDevSign", $sign_dev_key, true);
+			$this->SetJSONBuffer("KeyDevEnc", $enc_dev_key, true);
+			$this->SetJSONBuffer("KeyDevIV", substr($iv_dev_key, 0, 16), true);
 			$this->SetJSONBuffer("Registered", true);
 
 			$this->SendDebug("Key1", $enc_app_key, 1);

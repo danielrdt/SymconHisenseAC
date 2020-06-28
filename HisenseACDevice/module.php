@@ -350,7 +350,7 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function Update(){
-		$this->SendDebug("Update", KL_DEBUG);
+		$this->SendDebug("Update", "", KL_DEBUG);
 
 		if(!$this->GetBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
 			$this->GetACProperty('f_temp_in', false);

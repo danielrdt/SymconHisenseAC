@@ -101,6 +101,7 @@ class HisenseACDevice extends IPSModule {
 
 		//Timer
 		$this->RegisterTimer("UpdateTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
+		$this->RegisterTimer("OfflineTimer", 0, 'HISENSEAC_SetOffline($_IPS[\'TARGET\']);');
 		$this->RegisterTimer("OffTimer", 0, "RequestAction($powerId, false, true);");
 
 		$this->EnableAction("t_temp");
@@ -368,6 +369,10 @@ class HisenseACDevice extends IPSModule {
 		}
 	}
 
+	public function SetOffline(){
+		$this->SetBuffer('Registered', false);
+	}
+
 	/**
      * Liefert den aktuell verbundenen Splitter.
      *
@@ -496,13 +501,15 @@ class HisenseACDevice extends IPSModule {
 			];
 			
 		$data_json = json_encode($data, JSON_UNESCAPED_SLASHES);
-		$this->SendDebug("NotifyAC", $data_json, 0);
+		$this->SendDebug("NotifyAC", ($this->GetBuffer('Registered') ? 'PUT ' : 'POST ').$data_json.' -> '.$this->ReadAttributeString('LANIP'), 0);
 
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_json);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
 			'Content-Type: application/json',
 			'Content-Length: '.strlen($data_json)
 		]);
+
+		if($hasCmdsInQueue) $this->SetTimerInterval("OfflineTimer", 10000);
 
 		curl_exec($ch);
 		curl_close($ch);
@@ -583,6 +590,7 @@ class HisenseACDevice extends IPSModule {
     protected function ProcessHookData()
     {
 		$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI']);
+		$this->SetTimerInterval("OfflineTimer", 0);
 		$hookBase = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/';
 		$input = file_get_contents("php://input");
 		$input_json = json_decode($input);

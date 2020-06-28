@@ -689,7 +689,7 @@ class HisenseACDevice extends IPSModule {
 			if(count($cmdQueue) > 0){
 				$cmd = array_shift($cmdQueue);
 				$this->SetJSONBuffer("CommandQueue", $cmdQueue);
-				$this->SendDebug("GetCommand", "Removed command from queue:".var_dump($cmd), 0);
+				//$this->SendDebug("GetCommand", "Removed command from queue:".print_r($cmd, true), 0);
 			}
 
 			$seqNo = $this->GetJSONBuffer('NextSequenceNo');

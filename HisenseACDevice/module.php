@@ -404,7 +404,7 @@ class HisenseACDevice extends IPSModule {
 			if(!$device->key == $this->ReadPropertyInteger("DeviceKey")) continue;
 			
 			$this->WriteAttributeString('LANIP', $device->lan_ip);
-			$this->LogMessage("Got LAN IP ".$device->lan_ip, KL_INFO);
+			$this->LogMessage("Got LAN IP ".$device->lan_ip, KL_MESSAGE);
 			break;
 		}
 	}
@@ -429,7 +429,7 @@ class HisenseACDevice extends IPSModule {
 		$this->WriteAttributeString('LANKey', $jsonData->lanip_key);
 		$this->WriteAttributeString('LANKeyId', $jsonData->lanip_key_id);
 
-		$this->LogMessage("Got LAN Key ".$jsonData->lanip_key_id.": ".$jsonData->lanip_key, KL_INFO);
+		$this->LogMessage("Got LAN Key ".$jsonData->lanip_key_id.": ".$jsonData->lanip_key, KL_MESSAGE);
 	}
 
 	private function FahrenheitToCelsius($given_value){

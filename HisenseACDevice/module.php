@@ -181,7 +181,7 @@ class HisenseACDevice extends IPSModule {
 				$ins = IPS_GetInstance($SenderID);
 				if($ins['InstanceStatus'] == 102){
 					$this->SetTimerInterval("UpdateTimer", 5000);
-					$this->Update();
+					//$this->Update();
 				}else{
 					$this->SetTimerInterval("UpdateTimer", 10000);
 				}
@@ -192,7 +192,7 @@ class HisenseACDevice extends IPSModule {
 			case $this->ReadPropertyInteger('OutsideTemperature'):
 			case $this->ReadPropertyInteger('PresenceVariable'):
 				if($Message != VM_UPDATE || !$Data[1]) break; //$Data[1] = Variable changed
-				$this->CheckAutocool();
+				//$this->CheckAutocool();
 				break;
 
 			default:

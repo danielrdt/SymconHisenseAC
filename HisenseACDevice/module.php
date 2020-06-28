@@ -403,7 +403,7 @@ class HisenseACDevice extends IPSModule {
 			$device = $dev->device;
 			if(!$device->key == $this->ReadPropertyInteger("DeviceKey")) continue;
 			
-			$this->SetAttributeString('LANIP', $device->lan_ip);
+			$this->WriteAttributeString('LANIP', $device->lan_ip);
 			$this->LogMessage("Got LAN IP ".$device->lan_ip, KL_INFO);
 			break;
 		}
@@ -426,8 +426,8 @@ class HisenseACDevice extends IPSModule {
 			return;
 		}
 
-		$this->SetAttributeString('LANKey', $jsonData->lanip_key);
-		$this->SetAttributeString('LANKeyId', $jsonData->lanip_key_id);
+		$this->WriteAttributeString('LANKey', $jsonData->lanip_key);
+		$this->WriteAttributeString('LANKeyId', $jsonData->lanip_key_id);
 
 		$this->LogMessage("Got LAN Key ".$jsonData->lanip_key_id.": ".$jsonData->lanip_key, KL_INFO);
 	}

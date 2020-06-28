@@ -120,7 +120,7 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterMessage($splitter, IM_CHANGESTATUS);
 		$ins = IPS_GetInstance($splitter);
 		if($ins['InstanceStatus'] == 102){
-			$this->SendDebug("Create", "Update on create", 0);
+			$this->SendDebug("Create", "Update on create");
 			$this->SetTimerInterval("UpdateTimer", 5000);
 		}
 	}
@@ -350,7 +350,7 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function Update(){
-		$this->SendDebug("Update", "", KL_DEBUG);
+		$this->SendDebug("Update", "", 0);
 
 		if(!$this->GetBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
 			$this->GetACProperty('f_temp_in', false);
@@ -496,7 +496,7 @@ class HisenseACDevice extends IPSModule {
 			];
 			
 		$data_json = json_encode($data);
-		$this->SendDebug("NotifyAC", $data_json, KL_DEBUG);
+		$this->SendDebug("NotifyAC", $data_json, 0);
 
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_json);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -510,7 +510,7 @@ class HisenseACDevice extends IPSModule {
 
 	public function GetACProperty($property, $notify = true)
 	{
-		$this->SendDebug("GetACProperty", $property, KL_DEBUG);
+		$this->SendDebug("GetACProperty", $property);
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
 			$cmdId = $this->GetBuffer('NextCmdId');
@@ -541,7 +541,7 @@ class HisenseACDevice extends IPSModule {
 
 	public function SetACProperty($property, $value)
 	{
-		$this->SendDebug("SetACProperty", $property, KL_DEBUG);
+		$this->SendDebug("SetACProperty", $property);
 		if(!in_array($property, AC_PROPERTIES)) throw new Exception('Unknown property');
 		$baseType = 'boolean';
 		switch($property){
@@ -582,7 +582,7 @@ class HisenseACDevice extends IPSModule {
      */
     protected function ProcessHookData()
     {
-		$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI'], KL_DEBUG);
+		$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI']);
 		$hookBase = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/';
 		$input = file_get_contents("php://input");
 		$input_json = json_decode($input);
@@ -619,7 +619,7 @@ class HisenseACDevice extends IPSModule {
 
 	private function ProcessDatapoint($input_json)
 	{
-		$this->SendDebug("ProcessDatapoint", "", KL_DEBUG);
+		$this->SendDebug("ProcessDatapoint", "");
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
 			$seq_raw = openssl_decrypt($input_json->enc, 'AES-256-CBC', $this->GetBuffer('KeyDevEnc'), OPENSSL_ZERO_PADDING, $this->GetBuffer('KeyDevIV'));
@@ -640,7 +640,7 @@ class HisenseACDevice extends IPSModule {
 				case 't_temp':
 					$oldVal = $val;
 					$val = $this->FahrenheitToCelsius($oldVal);
-					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C", 0);
+					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C");
 					break;
 
 			}
@@ -653,7 +653,7 @@ class HisenseACDevice extends IPSModule {
 	
 	private function GetCommand()
 	{
-		$this->SendDebug("GetCommand", "", KL_DEBUG);
+		$this->SendDebug("GetCommand", "");
 		if(!$this->GetBuffer("Registered")) return;
 
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
@@ -691,13 +691,13 @@ class HisenseACDevice extends IPSModule {
 
 	private function ProcessKeyExchange($random1, $time1, $keyId)
 	{
-		$this->SendDebug("ProcessKeyExchange", "", KL_DEBUG);
+		$this->SendDebug("ProcessKeyExchange", "");
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
 			$this->SetBuffer("Registered", false);
 
 			if(!$keyId == $this->GetAttributeInteger('LANKeyId')){
-				$this->SendDebug("Received unknown LAN Key Id while key exchange - renew keys via cloud", KL_WARNING);
+				$this->SendDebug("ProcessKeyExchange", "Received unknown LAN Key Id while key exchange - renew keys via cloud");
 				$this->GetLANKey();
 			}
 

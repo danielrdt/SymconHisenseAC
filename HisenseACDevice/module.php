@@ -495,7 +495,7 @@ class HisenseACDevice extends IPSModule {
 				]
 			];
 			
-		$data_json = json_encode($data);
+		$data_json = json_encode($data, JSON_UNESCAPED_SLASHES);
 		$this->SendDebug("NotifyAC", $data_json, 0);
 
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_json);

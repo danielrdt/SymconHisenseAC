@@ -214,7 +214,7 @@ class HisenseACDevice extends IPSModule {
 
 	private function RegisterHook()
     {
-		$WebHook = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey");
+		$WebHook = '/hook/hisenseac/'.$this->ReadPropertyInteger("DeviceKey");
 
         $ids = IPS_GetInstanceListByModuleID('{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}');
         if (count($ids) > 0) {
@@ -496,7 +496,7 @@ class HisenseACDevice extends IPSModule {
 			'local_reg' => [
 				'ip' 	=> '10.87.17.230',
 				'port'	=> 80,
-				'uri'	=> '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey"),
+				'uri'	=> '/hook/hisenseac/'.$this->ReadPropertyInteger("DeviceKey"),
 				'notify'=> 1
 				]
 			];
@@ -528,7 +528,7 @@ class HisenseACDevice extends IPSModule {
 							'method'    => 'GET',
 							'resource'  => 'property.json?name='.$property,
 							'data'      => '',
-							'uri'       => '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/property/datapoint.json'
+							'uri'       => '/hook/hisenseac/'.$this->ReadPropertyInteger("DeviceKey").'/property/datapoint.json'
 						]
 					]
 				]
@@ -590,7 +590,7 @@ class HisenseACDevice extends IPSModule {
     {
 		$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI'], 0);
 		$this->SetTimerInterval("OfflineTimer", 30000);
-		$hookBase = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/';
+		$hookBase = '/hook/hisenseac/'.$this->ReadPropertyInteger("DeviceKey").'/';
 		$input = file_get_contents("php://input");
 		$input_json = json_decode($input);
 

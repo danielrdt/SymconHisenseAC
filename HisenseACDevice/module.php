@@ -43,7 +43,7 @@ class HisenseACDevice extends IPSModule {
 		$this->RegisterAttributeString('LANIP', '');
 		$this->RegisterAttributeInteger('LANKeyId', 0);
 
-		$this->SetBuffer("Registered", false);
+		$this->SetJSONBuffer("Registered", false);
 		$this->SetJSONBuffer("CommandQueue", []);
 
 		$workModeProfile = "HISENSEAC.".$this->insId.".WorkMode";
@@ -101,7 +101,7 @@ class HisenseACDevice extends IPSModule {
 
 		//Timer
 		$this->RegisterTimer("UpdateTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
-		$this->RegisterTimer("OfflineTimer", 0, 'HISENSEAC_SetOffline($_IPS[\'TARGET\']);');
+		$this->RegisterTimer("OfflineTimer", 30000, 'HISENSEAC_SetOffline($_IPS[\'TARGET\']);');
 		$this->RegisterTimer("OffTimer", 0, "RequestAction($powerId, false, true);");
 
 		$this->EnableAction("t_temp");
@@ -289,7 +289,7 @@ class HisenseACDevice extends IPSModule {
 	public function RequestAction($Ident, $Value, $Automatic = false) {
 		$splitter = $this->GetSplitter();
 		$ins = IPS_GetInstance($splitter);
-		if(!$this->GetBuffer('Registered') && $ins['InstanceStatus'] <> 102){
+		if(!$this->GetJSONBuffer('Registered') && $ins['InstanceStatus'] <> 102){
 			$this->LogMessage("Could not send command because cloud not connected", KL_ERROR);
 			throw new Exception($this->Translate("Cloud not connected"));
 		}
@@ -353,7 +353,7 @@ class HisenseACDevice extends IPSModule {
 	public function Update(){
 		$this->SendDebug("Update", "", 0);
 
-		if(!$this->GetBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
+		if(!$this->GetJSONBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
 			$this->GetACProperty('f_temp_in', false);
 			$this->GetACProperty('t_temp', false);
 			$this->GetACProperty('t_power', false);
@@ -370,7 +370,8 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function SetOffline(){
-		$this->SetBuffer('Registered', false);
+		$this->SetTimerInterval("OfflineTimer", 0);
+		$this->SetJSONBuffer('Registered', false);
 	}
 
 	/**
@@ -483,7 +484,7 @@ class HisenseACDevice extends IPSModule {
 		}
 
 		$ch = curl_init('http://'.$this->ReadAttributeString('LANIP').'/local_reg.json');
-		if($this->GetBuffer('Registered')){
+		if($this->GetJSONBuffer('Registered')){
 			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
 		} else {
 			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
@@ -496,20 +497,18 @@ class HisenseACDevice extends IPSModule {
 				'ip' 	=> '10.87.17.230',
 				'port'	=> 80,
 				'uri'	=> '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey"),
-				'notify'=> $hasCmdsInQueue ? 1 : 0
+				'notify'=> 1
 				]
 			];
 			
 		$data_json = json_encode($data, JSON_UNESCAPED_SLASHES);
-		$this->SendDebug("NotifyAC", ($this->GetBuffer('Registered') ? 'PUT ' : 'POST ').$data_json.' -> '.$this->ReadAttributeString('LANIP'), 0);
+		$this->SendDebug("NotifyAC", ($this->GetJSONBuffer('Registered') ? 'PUT ' : 'POST ').$data_json.' -> '.$this->ReadAttributeString('LANIP'), 0);
 
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $data_json);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [
 			'Content-Type: application/json',
 			'Content-Length: '.strlen($data_json)
 		]);
-
-		if($hasCmdsInQueue) $this->SetTimerInterval("OfflineTimer", 10000);
 
 		curl_exec($ch);
 		curl_close($ch);
@@ -520,7 +519,7 @@ class HisenseACDevice extends IPSModule {
 		$this->SendDebug("GetACProperty", $property);
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
-			$cmdId = $this->GetBuffer('NextCmdId');
+			$cmdId = $this->GetJSONBuffer('NextCmdId');
 			$cmd = [
 				'cmds' => [
 					[
@@ -534,7 +533,7 @@ class HisenseACDevice extends IPSModule {
 					]
 				]
 			];
-			$this->SetBuffer('NextCmdId', $cmdId + 1);
+			$this->SetJSONBuffer('NextCmdId', $cmdId + 1);
 
 			$cmdQueue = $this->GetJSONBuffer("CommandQueue");
 			array_push($cmdQueue, $cmd);
@@ -590,7 +589,7 @@ class HisenseACDevice extends IPSModule {
     protected function ProcessHookData()
     {
 		$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI']);
-		$this->SetTimerInterval("OfflineTimer", 0);
+		$this->SetTimerInterval("OfflineTimer", 30000);
 		$hookBase = '/hook/HisenseACDevice/'.$this->ReadPropertyInteger("DeviceKey").'/';
 		$input = file_get_contents("php://input");
 		$input_json = json_decode($input);
@@ -609,7 +608,7 @@ class HisenseACDevice extends IPSModule {
 				break;
 
 			case $hookBase.'fin.json':
-				$this->SetBuffer('Registered', false);
+				$this->SetJSONBuffer('Registered', false);
 				break;
 		}
 		
@@ -630,9 +629,9 @@ class HisenseACDevice extends IPSModule {
 		$this->SendDebug("ProcessDatapoint", "");
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
-			$seq_raw = openssl_decrypt($input_json->enc, 'AES-256-CBC', $this->GetBuffer('KeyDevEnc'), OPENSSL_ZERO_PADDING, $this->GetBuffer('KeyDevIV'));
+			$seq_raw = openssl_decrypt($input_json->enc, 'AES-256-CBC', $this->GetJSONBuffer('KeyDevEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyDevIV'));
 			//Set IV
-			$this->SetBuffer('KeyDevIV', substr(base64_decode($input_json->enc), -16));
+			$this->SetJSONBuffer('KeyDevIV', substr(base64_decode($input_json->enc), -16));
 
 			//Signature not checked yet -> TODO
 
@@ -662,29 +661,31 @@ class HisenseACDevice extends IPSModule {
 	private function GetCommand()
 	{
 		$this->SendDebug("GetCommand", "");
-		if(!$this->GetBuffer("Registered")) return;
+		if(!$this->GetJSONBuffer("Registered")) return;
 
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
 			$cmdQueue = $this->GetJSONBuffer("CommandQueue");
-			if(count($cmdQueue) == 0) return;
 
-			$cmd = array_shift($cmdQueue);
-			$this->SetJSONBuffer("CommandQueue", $cmdQueue);
+			$cmd = [];
+			if(count($cmdQueue) > 0){
+				$cmd = array_shift($cmdQueue);
+				$this->SetJSONBuffer("CommandQueue", $cmdQueue);
+			}
 
-			$seqNo = $this->GetBuffer('NextSequenceNo');
-			$this->SetBuffer('NextSequenceNo', $seqNo + 1);
+			$seqNo = $this->GetJSONBuffer('NextSequenceNo');
+			$this->SetJSONBuffer('NextSequenceNo', $seqNo + 1);
 
 			$seq = [
 				'seq_no' => $seqNo,
 				'data'   => $cmd
 			];
 			$seq_json = utf8_encode(json_encode($seq, JSON_UNESCAPED_SLASHES));
-			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetBuffer('KeyAppIV'));
+			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetJSONBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyAppIV'));
 			//Set IV
-			$this->SetBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16));
+			$this->SetJSONBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16));
 
-			$sign = hash_hmac('sha256', $seq_json, $this->GetBuffer('KeyAppSign'), true);
+			$sign = hash_hmac('sha256', $seq_json, $this->GetJSONBuffer('KeyAppSign'), true);
 
 			$result = [
 				'enc'   => $seq_enc,
@@ -702,7 +703,7 @@ class HisenseACDevice extends IPSModule {
 		$this->SendDebug("ProcessKeyExchange", "");
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
-			$this->SetBuffer("Registered", false);
+			$this->SetJSONBuffer("Registered", false);
 
 			if(!$keyId == $this->GetAttributeInteger('LANKeyId')){
 				$this->SendDebug("ProcessKeyExchange", "Received unknown LAN Key Id while key exchange - renew keys via cloud");
@@ -730,15 +731,15 @@ class HisenseACDevice extends IPSModule {
 			$enc_dev_key  = hash_hmac('sha256', hash_hmac('sha256', $enc_dev_seed, $secret, true).$enc_dev_seed, $secret, true);
 			$iv_dev_key   = hash_hmac('sha256', hash_hmac('sha256', $iv_dev_seed, $secret, true).$iv_dev_seed, $secret, true);
 
-			$this->SetBuffer("NextSequenceNo", 0);
-			$this->SetBuffer("NextCmdId", 0);
-			$this->SetBuffer("KeyAppSign", $sign_app_key);
-			$this->SetBuffer("KeyAppEnc", $enc_app_key);
-			$this->SetBuffer("KeyAppIV", substr($iv_app_key, 0, 16));
-			$this->SetBuffer("KeyDevSign", $sign_dev_key);
-			$this->SetBuffer("KeyDevEnc", $enc_dev_key);
-			$this->SetBuffer("KeyDevIV", substr($iv_dev_key, 0, 16));
-			$this->SetBuffer("Registered", true);
+			$this->SetJSONBuffer("NextSequenceNo", 0);
+			$this->SetJSONBuffer("NextCmdId", 0);
+			$this->SetJSONBuffer("KeyAppSign", $sign_app_key);
+			$this->SetJSONBuffer("KeyAppEnc", $enc_app_key);
+			$this->SetJSONBuffer("KeyAppIV", substr($iv_app_key, 0, 16));
+			$this->SetJSONBuffer("KeyDevSign", $sign_dev_key);
+			$this->SetJSONBuffer("KeyDevEnc", $enc_dev_key);
+			$this->SetJSONBuffer("KeyDevIV", substr($iv_dev_key, 0, 16));
+			$this->SetJSONBuffer("Registered", true);
 
 			$return = [
 				'random_2'  => $random2,

@@ -701,7 +701,9 @@ class HisenseACDevice extends IPSModule {
 			];
 			$seq_json = utf8_encode(json_encode($seq, JSON_UNESCAPED_SLASHES));
 			$this->SendDebug("GetCommand", "Prepared sequence: ".$seq_json, 0);
-			$this->SendDebug("Key2", $this->GetJSONBuffer('KeyAppEnc'), 1);
+			$this->SendDebug("GetCommand KeyAppSign", $this->GetJSONBuffer('KeyAppSign'), 1);
+			$this->SendDebug("GetCommand KeyAppEnc", $this->GetJSONBuffer('KeyAppEnc'), 1);
+			$this->SendDebug("GetCommand KeyAppIV", $this->GetJSONBuffer('KeyAppIV'), 1);
 			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetJSONBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyAppIV'));
 			//Set IV
 			$this->SetJSONBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16), true);
@@ -762,8 +764,9 @@ class HisenseACDevice extends IPSModule {
 			$this->SetJSONBuffer("KeyDevIV", substr($iv_dev_key, 0, 16), true);
 			$this->SetJSONBuffer("Registered", true);
 
-			$this->SendDebug("Key1", $enc_app_key, 1);
-			$this->SendDebug("Key3", $this->GetJSONBuffer('KeyAppEnc'), 1);
+			$this->SendDebug("KeyAppSign", $sign_app_key, 1);
+			$this->SendDebug("KeyAppEnc", $enc_app_key, 1);
+			$this->SendDebug("KeyAppIV", substr($iv_app_key, 0, 16), 1);
 
 			$return = [
 				'random_2'  => $random2,

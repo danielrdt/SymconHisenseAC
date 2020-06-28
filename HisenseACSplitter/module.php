@@ -229,11 +229,6 @@ class HisenseACSplitter extends IPSModule {
 	}
 
 	private function GetLANKey($DeviceKey){
-		$names = [];
-		foreach($Properties as $property){
-			$names[] = urlencode('names[]').'='.$property;
-		}
-
 		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/devices/$DeviceKey/lan.json");
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

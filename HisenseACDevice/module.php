@@ -385,6 +385,15 @@ class HisenseACDevice extends IPSModule {
 		$this->SetJSONBuffer('Registered', false);
 	}
 
+	public function Reset(){
+		$this->SetTimerInterval("OfflineTimer", 0);
+		$this->SetJSONBuffer('Registered', false);
+		$this->SetJSONBuffer("CommandQueue", []);
+		$this->SetJSONBuffer("NextCmdId", 0);
+		$this->WriteAttributeString('LANIP', '');
+		$this->WriteAttributeInteger('LANKeyId', 0);
+	}
+
 	/**
      * Liefert den aktuell verbundenen Splitter.
      *
@@ -418,10 +427,10 @@ class HisenseACDevice extends IPSModule {
 
 		foreach($jsonData as $dev){
 			$device = $dev->device;
-			if(!$device->key == $this->ReadPropertyInteger("DeviceKey")) continue;
+			if($device->key <> $this->ReadPropertyInteger("DeviceKey")) continue;
 			
 			$this->WriteAttributeString('LANIP', $device->lan_ip);
-			$this->LogMessage("Got LAN IP ".$device->lan_ip, KL_MESSAGE);
+			$this->LogMessage("Got LAN IP for ".$this->ReadPropertyInteger("DeviceKey")." ".$device->lan_ip, KL_MESSAGE);
 			break;
 		}
 	}
@@ -540,7 +549,7 @@ class HisenseACDevice extends IPSModule {
 							'method'    => 'GET',
 							'resource'  => 'property.json?name='.$property,
 							'data'      => '',
-							'uri'       => '/hook/'.$this->ReadPropertyInteger("DeviceKey").'/datapoint.json'
+							'uri'       => '/hook/'.$this->ReadPropertyInteger("DeviceKey").'/property/datapoint.json'
 						]
 					]
 				]
@@ -560,7 +569,7 @@ class HisenseACDevice extends IPSModule {
 	public function SetACProperty($property, $value)
 	{
 		$this->SendDebug("SetACProperty", $property, 0);
-		if(!in_array($property, AC_PROPERTIES)) throw new Exception('Unknown property');
+		if(!in_array($property, self::AC_PROPERTIES)) throw new Exception('Unknown property');
 		$baseType = 'boolean';
 		switch($property){
 			case 't_fan_speed':
@@ -610,32 +619,42 @@ class HisenseACDevice extends IPSModule {
 			switch($_SERVER['REQUEST_URI']){
 				case $hookBase.'key_exchange.json':
 					$result = $this->ProcessKeyExchange($input_json->key_exchange->random_1, $input_json->key_exchange->time_1, $input_json->key_exchange->key_id);
-					break;
+					$result_raw = json_encode($result, JSON_UNESCAPED_SLASHES);
+					header("HTTP/1.1 200 OK");
+					header("Content-type: application/json");
+					echo utf8_encode($result_raw);
+					return;
 
 				case $hookBase.'commands.json':
 					$result = $this->GetCommand();
-					break;
+					if($result){
+						$result_raw = json_encode($result, JSON_UNESCAPED_SLASHES);
+						if(count($this->GetJSONBuffer("CommandQueue")) > 0){
+							header("HTTP/1.1 206 Partial Content");
+						}else{
+							header("HTTP/1.1 200 OK");
+						}
+						header("Content-type: application/json");
+						echo utf8_encode($result_raw);
+						$this->SendDebug("ProcessHookData", "Result: ".$result_raw, 0);
+					}else{
+						$result_raw = json_encode([]);
+						header("HTTP/1.1 204 Empty");
+						header("Content-type: application/json");
+						echo utf8_encode($result_raw);
+						$this->SendDebug("ProcessHookData", "Emtpy Result".$result_raw, 0);
+					}
+					return;
 
-				case $hookBase.'datapoint.json':
+				case $hookBase.'property/datapoint.json':
 					$this->ProcessDatapoint($input_json);
-					break;
+					header("HTTP/1.1 200 OK");
+					return;
 
 				case $hookBase.'fin.json':
 					$this->SetJSONBuffer('Registered', false);
-					break;
-			}
-			
-			if($result){
-				$result_raw = json_encode($result, JSON_UNESCAPED_SLASHES);
-				header("Content-type: application/json");
-				echo utf8_encode($result_raw);
-				$this->SendDebug("ProcessHookData", "Result: ".$result_raw, 0);
-			}else{
-				$result_raw = json_encode([]);
-				header("HTTP/1.1 204 Empty");
-				header("Content-type: application/json");
-				echo utf8_encode($result_raw);
-				$this->SendDebug("ProcessHookData", "Emtpy Result".$result_raw, 0);
+					header("HTTP/1.1 200 OK");
+					return;
 			}
 		} catch (Exception $e) {
 			$this->SendDebug("ProcessHookData Error", $e->getMessage(), 0);
@@ -656,8 +675,12 @@ class HisenseACDevice extends IPSModule {
 			$seq_json = rtrim($seq_raw, chr(0)); 
 			$seq = json_decode($seq_json, false, 512, JSON_THROW_ON_ERROR);
 
-			if(!in_array($seq->data->name, AC_PROPERTIES)) return;
+			if(!in_array($seq->data->name, self::AC_PROPERTIES)){
+				$this->SendDebug("ProcessDatapoint", "Invalid Datapoint (".$seq->data->name.")", 0);
+				return;
+			}
 
+			$this->SendDebug("ProcessDatapoint", $seq->data->name, 0);
 			$val = $seq->data->value;
 
 			switch($seq->data->name){
@@ -702,9 +725,6 @@ class HisenseACDevice extends IPSModule {
 			];
 			$seq_json = utf8_encode(json_encode($seq, JSON_UNESCAPED_SLASHES));
 			$this->SendDebug("GetCommand", "Prepared sequence: ".$seq_json, 0);
-			$this->SendDebug("GetCommand KeyAppSign", $this->GetJSONBuffer('KeyAppSign'), 1);
-			$this->SendDebug("GetCommand KeyAppEnc", $this->GetJSONBuffer('KeyAppEnc'), 1);
-			$this->SendDebug("GetCommand KeyAppIV", $this->GetJSONBuffer('KeyAppIV'), 1);
 			$seq_enc = openssl_encrypt($this->Pad($seq_json.chr(0), 16), 'AES-256-CBC', $this->GetJSONBuffer('KeyAppEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyAppIV'));
 			//Set IV
 			$this->SetJSONBuffer('KeyAppIV', substr(base64_decode($seq_enc), -16), true);
@@ -764,10 +784,6 @@ class HisenseACDevice extends IPSModule {
 			$this->SetJSONBuffer("KeyDevEnc", $enc_dev_key, true);
 			$this->SetJSONBuffer("KeyDevIV", substr($iv_dev_key, 0, 16), true);
 			$this->SetJSONBuffer("Registered", true);
-
-			$this->SendDebug("KeyAppSign", $sign_app_key, 1);
-			$this->SendDebug("KeyAppEnc", $enc_app_key, 1);
-			$this->SendDebug("KeyAppIV", substr($iv_app_key, 0, 16), 1);
 
 			$return = [
 				'random_2'  => $random2,

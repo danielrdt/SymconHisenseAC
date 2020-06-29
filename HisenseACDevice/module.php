@@ -39,7 +39,7 @@ class HisenseACDevice extends IPSModule {
 		//These lines are parsed on Symcon Startup or Instance creation
 		//You cannot use variables here. Just static values.
 		$this->RegisterPropertyInteger("DeviceKey", 0);
-		$this->RegisterPropertyString("LocalAddress", $this->GetLocalIP());
+		$this->RegisterPropertyString("LocalAddress", '');
 		$this->RegisterAttributeString('LANKey', '');
 		$this->RegisterAttributeString('LANIP', '');
 		$this->RegisterAttributeInteger('LANKeyId', 0);
@@ -444,18 +444,6 @@ class HisenseACDevice extends IPSModule {
 			$this->LogMessage("Got LAN IP for ".$this->ReadPropertyInteger("DeviceKey")." ".$device->lan_ip, KL_MESSAGE);
 			break;
 		}
-	}
-
-	private function GetLocalIP()
-	{
-		$data = array(
-			"DataID"	=> "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}",
-			"command"	=> "GetLocalIP"
-		);
-		$data_string = json_encode($data);
-		$result = $this->SendDataToParent($data_string);
-		
-		return $result;
 	}
 
 	private function GetLocalPort()

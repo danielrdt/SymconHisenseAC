@@ -276,6 +276,9 @@ class HisenseACSplitter extends IPSModule {
 				switch($json->command){
 					case 'GetDevices':
 						return $this->GetDevices();
+
+					case 'GetLocalIP':
+						return $this->ReadAttributeString('LocalIPAddress');
 				}
 				break;
 
@@ -291,10 +294,7 @@ class HisenseACSplitter extends IPSModule {
 						return $this->GetLANKey($json->DeviceKey);
 
 					case 'GetDevices':
-						return $this->GetDevices();
-
-					case 'GetLocalIP':
-						return $this->ReadAttributeString('LocalIPAddress');
+						return $this->GetDevices();			
 				}
 				break;
 		}

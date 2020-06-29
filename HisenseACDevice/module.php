@@ -194,7 +194,7 @@ class HisenseACDevice extends IPSModule {
 			case $this->ReadPropertyInteger('OutsideTemperature'):
 			case $this->ReadPropertyInteger('PresenceVariable'):
 				if($Message != VM_UPDATE || !$Data[1]) break; //$Data[1] = Variable changed
-				//$this->CheckAutocool();
+				$this->CheckAutocool();
 				break;
 
 			default:

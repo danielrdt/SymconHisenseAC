@@ -379,6 +379,7 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function SetOffline(){
+		$this->LogMessage(IPS_GetName($this->insId)." now offline.", KL_WARNING);
 		$this->SetTimerInterval("OfflineTimer", 0);
 		$this->SetJSONBuffer('Registered', false);
 	}
@@ -457,13 +458,13 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	private function FahrenheitToCelsius($given_value){
-		$celsius=5/9*($given_value-32);
-		return round($celsius*2)/2;
+		$celsius = ($given_value - 32) * 5 / 9;
+		return round($celsius);
 	}
 
 	private function CelsiusToFahrenheit($given_value){
-		$fahrenheit=$given_value*9/5+32;
-		return $fahrenheit ;
+		$fahrenheit = $given_value * 1.8 + 32;
+		return round($fahrenheit);
 	}
 
 	/**
@@ -794,6 +795,8 @@ class HisenseACDevice extends IPSModule {
 				'random_2'  => $random2,
 				'time_2'    => $time2
 			];
+
+			$this->LogMessage("Session for ".IPS_GetName($this->insId)." established", KL_NOTIFY);
 
 			return $return;
 		} finally {

@@ -39,6 +39,7 @@ class HisenseACDevice extends IPSModule {
 		//These lines are parsed on Symcon Startup or Instance creation
 		//You cannot use variables here. Just static values.
 		$this->RegisterPropertyInteger("DeviceKey", 0);
+		$this->RegisterPropertyString("LocalAddress", '');
 		$this->RegisterAttributeString('LANKey', '');
 		$this->RegisterAttributeString('LANIP', '');
 		$this->RegisterAttributeInteger('LANKeyId', 0);
@@ -182,8 +183,7 @@ class HisenseACDevice extends IPSModule {
 				if($Message != IM_CHANGESTATUS) break;
 				$ins = IPS_GetInstance($SenderID);
 				if($ins['InstanceStatus'] == 102){
-					$this->SetTimerInterval("UpdateTimer", 5000);
-					//$this->Update();
+					$this->SetTimerInterval("UpdateTimer", 1000);
 				}else{
 					$this->SetTimerInterval("UpdateTimer", 10000);
 				}
@@ -262,7 +262,7 @@ class HisenseACDevice extends IPSModule {
 		if($currentPower){
 			//Device is on - check if we should turn off
 			if(!$outsideOn || $lowerTempReached){
-				$this->LogMessage("Switching AC off", KL_MESSAGE);
+				$this->LogMessage("Switching AC ".IPS_GetLocation($this->insId)." off by automatic", KL_NOTIFY);
 				$this->RequestAction('t_power', false, true);
 			}else if(!$presenceOn && !$this->ReadAttributeBoolean('OffTimerEnabled')){
 				$this->EnableOffTimer();
@@ -270,7 +270,7 @@ class HisenseACDevice extends IPSModule {
 		}else{
 			//Device is off - check if we should turn on
 			if(!$presenceOn || !$outsideOn || !$upperTempReached) return;
-			$this->LogMessage("Switching AC on", KL_MESSAGE);
+			$this->LogMessage("Switching AC ".IPS_GetLocation($this->insId)." on", KL_NOTIFY);
 			$this->DisableOffTimer();
 			$this->RequestAction('t_power', true, true);
 			$this->RequestAction('t_work_mode', 2); //Cooling
@@ -313,7 +313,10 @@ class HisenseACDevice extends IPSModule {
 				break;
 
 			case 't_power':
-				if(!$Automatic) $this->SetValue('AutoCooling', false);
+				if(!$Automatic){
+					$this->SetValue('AutoCooling', false);
+					$this->DisableOffTimer();
+				}
 			case 't_backlight':
 			case 't_eco':
 			case 't_fan_leftright':
@@ -340,11 +343,16 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function GetConfigurationForm(){
-		return '{
+		$form = '{
 			"elements":
-			[
-				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
-					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperature" },
+			[';
+		if(empty($this->ReadPropertyString('LocalAddress'))){
+			$form .= '{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress", "value": "'.$this->GetLocalIP().'" },';
+		}else{
+			$form .= '{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress" },';
+		}
+		$form .= '{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
+					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperatureOverride" },
 					{ "type": "NumberSpinner", "name": "OnHysteresis", "caption": "OnHysteresis", "digits": 1, "suffix": "°C" },
 					{ "type": "NumberSpinner", "name": "OffHysteresis", "caption": "OffHysteresis", "digits": 1, "suffix": "°C" }
 				]},
@@ -358,32 +366,39 @@ class HisenseACDevice extends IPSModule {
 					{ "type": "NumberSpinner", "name": "PresenceTrailing", "caption": "PresenceTrailing", "suffix": "min" }
 				]}
 			]
-		}';;
+		}';
+		return $form;
 	}
 
+	/**
+	 * Update AC -> If offline also request values for all properties
+	 */
 	public function Update(){
+		if(empty($this->ReadPropertyString('LocalAddress'))) return;
+
 		if(!$this->GetJSONBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
-			$this->GetACProperty('f_temp_in', false);
-			$this->GetACProperty('t_temp', false);
-			$this->GetACProperty('t_power', false);
-			$this->GetACProperty('t_backlight', false);
-			$this->GetACProperty('t_eco', false);
-			$this->GetACProperty('t_fan_leftright', false);
-			$this->GetACProperty('t_fan_mute', false);
-			$this->GetACProperty('t_fan_power', false);
-			$this->GetACProperty('t_fan_speed', false);
-			$this->GetACProperty('t_work_mode', true);
+			foreach(self::AC_PROPERTIES as $prop){
+				$this->GetACProperty($prop, false);
+			}
+			$this->NotifyAC(true);
 		}else{
 			$this->NotifyAC(count($this->GetJSONBuffer('CommandQueue')) == 0 ? false : true);
 		}
 	}
 
+	/**
+	 * Set AC offline -> will force reestablish session
+	 */
 	public function SetOffline(){
-		$this->LogMessage(IPS_GetName($this->insId)." now offline.", KL_WARNING);
+		$this->LogMessage(IPS_GetLocation($this->insId)." now offline.", KL_WARNING);
 		$this->SetTimerInterval("OfflineTimer", 0);
 		$this->SetJSONBuffer('Registered', false);
 	}
 
+	/**
+	 * Set AC offline and delete all stored information (CommandQueue, LAN IP, LAN Key, ...)
+	 * Cloud Access is needed to establish communication again
+	 */
 	public function Reset(){
 		$this->SetTimerInterval("OfflineTimer", 0);
 		$this->SetJSONBuffer('Registered', false);
@@ -432,6 +447,33 @@ class HisenseACDevice extends IPSModule {
 			$this->LogMessage("Got LAN IP for ".$this->ReadPropertyInteger("DeviceKey")." ".$device->lan_ip, KL_MESSAGE);
 			break;
 		}
+	}
+
+	private function GetLocalIP()
+	{
+		$data = array(
+			"DataID"	=> "{D1095CBF-91B6-27E5-A1CB-BB23267A1B33}",
+			"command"	=> "GetLocalIP"
+		);
+		$data_string = json_encode($data);
+		$result = $this->SendDataToParent($data_string);
+		
+		return $result;
+	}
+
+	private function GetLocalPort()
+	{
+		$webservers = IPS_GetInstanceListByModuleID('{D83E9CCF-9869-420F-8306-2B043E9BA180}');
+		$port = 0;
+		foreach($webservers as $server){
+			if(IPS_GetProperty($server, 'EnableSSL')) continue; //Module may not able to use SSL
+			if(IPS_GetProperty($server, 'Server') == '0.0.0.0' || IPS_GetProperty($server, 'Server') == $this->ReadPropertyString('LocalAddress')){
+				return IPS_GetProperty($server, 'Port');
+			}else{
+				$port = IPS_GetProperty($server, 'Port');
+			}
+		}
+		return $port;
 	}
 
 	private function GetLANKey()
@@ -513,8 +555,8 @@ class HisenseACDevice extends IPSModule {
 
 		$data = [
 			'local_reg' => [
-				'ip' 	=> '10.87.17.230',
-				'port'	=> 80,
+				'ip' 	=> $this->ReadPropertyString('LocalAddress'),
+				'port'	=> $this->GetLocalPort(),
 				'uri'	=> '/hook/'.$this->ReadPropertyInteger("DeviceKey"),
 				'notify'=> 1
 				]
@@ -533,7 +575,13 @@ class HisenseACDevice extends IPSModule {
 		curl_close($ch);
 	}
 
-	public function GetACProperty($property, $notify = true)
+	/**
+     * Request current property value from air condition
+     *
+     * @param string $property Name of property.
+	 * @param bool $notify Should the ac notified about new command?
+     */
+	public function GetACProperty(string $property, bool $notify = true)
 	{
 		$this->SendDebug("GetACProperty", $property, 0);
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
@@ -565,7 +613,13 @@ class HisenseACDevice extends IPSModule {
 		if($notify) $this->NotifyAC(true);
 	}
 
-	public function SetACProperty($property, $value)
+	/**
+     * Set property of air condition
+     *
+     * @param string $property Name of property.
+	 * @param int $notify Should the ac notified about new command?
+     */
+	public function SetACProperty(string $property, int $value)
 	{
 		$this->SendDebug("SetACProperty", $property, 0);
 		if(!in_array($property, self::AC_PROPERTIES)) throw new Exception('Unknown property');
@@ -723,7 +777,7 @@ class HisenseACDevice extends IPSModule {
 
 			$seqNo = $this->GetJSONBuffer('NextSequenceNo');
 			$seqNo = $seqNo ? $seqNo : 0;
-			$this->SetJSONBuffer('NextSequenceNo', $seqNo + 1);
+			$this->SetJSONBuffer('NextSequenceNo', $seqNo == 65536 ? 0 : $seqNo + 1); //Roll over because by documentation this is UInt16
 
 			$seq = [
 				'seq_no' => $seqNo,
@@ -796,7 +850,7 @@ class HisenseACDevice extends IPSModule {
 				'time_2'    => $time2
 			];
 
-			$this->LogMessage("Session for ".IPS_GetName($this->insId)." established", KL_NOTIFY);
+			$this->LogMessage("Session for ".IPS_GetLocation($this->insId)." established", KL_NOTIFY);
 
 			return $return;
 		} finally {

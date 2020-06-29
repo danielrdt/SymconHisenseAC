@@ -27,6 +27,7 @@ class HisenseACSplitter extends IPSModule {
 		$this->RegisterAttributeString("RefreshToken", "");
 		$this->RegisterAttributeInteger("TokenExpire", 0);
 		$this->RegisterAttributeInteger("LastSignIn", 0);
+		$this->RegisterAttributeString("LocalIPAddress", '');
 
 		//Timer
 		$this->RegisterTimer("RefreshTokenTimer", 0, 'HISENSEACSPLIT_RefreshToken($_IPS[\'TARGET\']);');
@@ -96,6 +97,8 @@ class HisenseACSplitter extends IPSModule {
 		]);
 
 		$result = curl_exec($ch);
+		$cInfo = curl_getinfo($ch);
+		$this->WriteAttributeString('LocalIPAddress', $cInfo['local_ip']);
 		curl_close($ch);
 
 		$this->SendDebug("SignIn", "Result: ".$result, 0);
@@ -289,6 +292,9 @@ class HisenseACSplitter extends IPSModule {
 
 					case 'GetDevices':
 						return $this->GetDevices();
+
+					case 'GetLocalIP':
+						return $this->ReadAttributeString('LocalIPAddress');
 				}
 				break;
 		}

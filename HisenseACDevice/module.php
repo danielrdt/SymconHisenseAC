@@ -562,7 +562,7 @@ class HisenseACDevice extends IPSModule {
 				'ip' 	=> $this->ReadPropertyString('LocalAddress'),
 				'port'	=> $this->GetLocalPort(),
 				'uri'	=> '/hook/'.$this->ReadPropertyInteger("DeviceKey"),
-				'notify'=> 1
+				'notify'=> $hasCmdsInQueue ? 1 : 0
 				]
 			];
 			
@@ -576,6 +576,13 @@ class HisenseACDevice extends IPSModule {
 		]);
 
 		curl_exec($ch);
+
+		$respCode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+		if($respCode === 202){
+			//Accepted - reset offline timer
+			$this->SetTimerInterval("OfflineTimer", 30000);
+		}
+
 		curl_close($ch);
 	}
 
@@ -668,7 +675,6 @@ class HisenseACDevice extends IPSModule {
     {
 		try{
 			$this->SendDebug("ProcessHookData", $_SERVER['REQUEST_URI'], 0);
-			$this->SetTimerInterval("OfflineTimer", 30000);
 			$hookBase = '/hook/'.$this->ReadPropertyInteger("DeviceKey").'/';
 			$input = file_get_contents("php://input");
 			$input_json = json_decode($input);

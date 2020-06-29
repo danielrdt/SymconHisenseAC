@@ -103,6 +103,7 @@ class HisenseACDevice extends IPSModule {
 
 		//Timer
 		$this->RegisterTimer("UpdateTimer", 0, 'HISENSEAC_Update($_IPS[\'TARGET\']);');
+		$this->RegisterTimer("UpdatePropertiesTimer", 0, 'HISENSEAC_UpdateProperties($_IPS[\'TARGET\']);');
 		$this->RegisterTimer("OfflineTimer", 30000, 'HISENSEAC_SetOffline($_IPS[\'TARGET\']);');
 		$this->RegisterTimer("OffTimer", 0, "RequestAction($powerId, false, true);");
 
@@ -375,6 +376,7 @@ class HisenseACDevice extends IPSModule {
 		if(empty($this->ReadPropertyString('LocalAddress'))) return;
 
 		if(!$this->GetJSONBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
+			$this->SetTimerInterval("UpdatePropertiesTimer", 60000);
 			foreach(self::AC_PROPERTIES as $prop){
 				$this->GetACProperty($prop, false);
 			}
@@ -385,9 +387,24 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	/**
+	 * Update Properties -> If online also request values for all properties
+	 */
+	public function UpdateProperties(){
+		if(empty($this->ReadPropertyString('LocalAddress'))) return;
+
+		if($this->GetJSONBuffer('Registered')){
+			foreach(self::AC_PROPERTIES as $prop){
+				$this->GetACProperty($prop, false);
+			}
+			$this->NotifyAC(true);
+		}
+	}
+
+	/**
 	 * Set AC offline -> will force reestablish session
 	 */
 	public function SetOffline(){
+		$this->SetTimerInterval("UpdatePropertiesTimer", 0);
 		$this->LogMessage(IPS_GetLocation($this->insId)." now offline.", KL_WARNING);
 		$this->SetTimerInterval("OfflineTimer", 0);
 		$this->SetJSONBuffer('Registered', false);
@@ -398,6 +415,7 @@ class HisenseACDevice extends IPSModule {
 	 * Cloud Access is needed to establish communication again
 	 */
 	public function Reset(){
+		$this->SetTimerInterval("UpdatePropertiesTimer", 0);
 		$this->SetTimerInterval("OfflineTimer", 0);
 		$this->SetJSONBuffer('Registered', false);
 		$this->SetJSONBuffer("CommandQueue", []);
@@ -837,6 +855,7 @@ class HisenseACDevice extends IPSModule {
 			];
 
 			$this->LogMessage("Session for ".IPS_GetLocation($this->insId)." established", KL_NOTIFY);
+			$this->SetTimerInterval("UpdatePropertiesTimer", 60000);
 
 			return $return;
 		} finally {

@@ -99,6 +99,7 @@ class HisenseACSplitter extends IPSModule {
 		$result = curl_exec($ch);
 		$cInfo = curl_getinfo($ch);
 		$this->WriteAttributeString('LocalIPAddress', $cInfo['local_ip']);
+		$this->SendDebug("SignIn", "LocalIP: ".$this->ReadAttributeString("LocalIPAddress"), 0);
 		curl_close($ch);
 
 		$this->SendDebug("SignIn", "Result: ".$result, 0);

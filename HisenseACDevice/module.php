@@ -347,6 +347,7 @@ class HisenseACDevice extends IPSModule {
 			"elements":
 			[';
 		if(empty($this->ReadPropertyString('LocalAddress'))){
+			$this->SendDebug("GetConfigurationForm", "Local IP Empty: getting: ".$this->GetLocalIP(), 0);
 			$form .= '{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress", "value": "'.$this->GetLocalIP().'" },';
 		}else{
 			$form .= '{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress" },';

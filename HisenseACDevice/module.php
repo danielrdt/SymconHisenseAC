@@ -362,8 +362,6 @@ class HisenseACDevice extends IPSModule {
 	}
 
 	public function Update(){
-		$this->SendDebug("Update", "", 0);
-
 		if(!$this->GetJSONBuffer('Registered') && count($this->GetJSONBuffer('CommandQueue')) == 0){
 			$this->GetACProperty('f_temp_in', false);
 			$this->GetACProperty('t_temp', false);
@@ -636,13 +634,12 @@ class HisenseACDevice extends IPSModule {
 						}
 						header("Content-type: application/json");
 						echo utf8_encode($result_raw);
-						$this->SendDebug("ProcessHookData", "Result: ".$result_raw, 0);
 					}else{
 						$result_raw = json_encode([]);
 						header("HTTP/1.1 204 Empty");
 						header("Content-type: application/json");
 						echo utf8_encode($result_raw);
-						$this->SendDebug("ProcessHookData", "Emtpy Result".$result_raw, 0);
+						$this->SendDebug("ProcessHookData", "Emtpy Result", 0);
 					}
 					return;
 
@@ -663,7 +660,6 @@ class HisenseACDevice extends IPSModule {
 
 	private function ProcessDatapoint($input_json)
 	{
-		$this->SendDebug("ProcessDatapoint", "", 0);
 		IPS_SemaphoreEnter('HisenseACDevice'.$this->ReadPropertyInteger("DeviceKey"), 1000);
 		try{
 			$seq_raw = openssl_decrypt($input_json->enc, 'AES-256-CBC', $this->GetJSONBuffer('KeyDevEnc'), OPENSSL_ZERO_PADDING, $this->GetJSONBuffer('KeyDevIV'));
@@ -680,7 +676,6 @@ class HisenseACDevice extends IPSModule {
 				return;
 			}
 
-			$this->SendDebug("ProcessDatapoint", $seq->data->name, 0);
 			$val = $seq->data->value;
 
 			switch($seq->data->name){
@@ -688,10 +683,19 @@ class HisenseACDevice extends IPSModule {
 				case 't_temp':
 					$oldVal = $val;
 					$val = $this->FahrenheitToCelsius($oldVal);
-					$this->SendDebug("Update", "Converted $propName $oldVal °F to $val °C", 0);
+					$this->SendDebug("Update", "Converted ".$seq->data->name." $oldVal °F to $val °C", 0);
 					break;
-
+				
+				case 't_fan_leftright':
+				case 't_fan_power':
+				case 't_fan_mute':
+				case 't_eco':
+				case 't_backlight':
+					$val = boolval($val);
+					break;
 			}
+
+			$this->SendDebug("ProcessDatapoint", $seq->data->name." -> ".$val, 0);
 
 			$this->SetValue($seq->data->name, $val);
 		} finally {

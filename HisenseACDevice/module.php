@@ -686,6 +686,7 @@ class HisenseACDevice extends IPSModule {
 					$this->SendDebug("Update", "Converted ".$seq->data->name." $oldVal °F to $val °C", 0);
 					break;
 				
+				case 't_power':
 				case 't_fan_leftright':
 				case 't_fan_power':
 				case 't_fan_mute':

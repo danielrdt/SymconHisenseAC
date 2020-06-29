@@ -39,7 +39,7 @@ class HisenseACDevice extends IPSModule {
 		//These lines are parsed on Symcon Startup or Instance creation
 		//You cannot use variables here. Just static values.
 		$this->RegisterPropertyInteger("DeviceKey", 0);
-		$this->RegisterPropertyString("LocalAddress", '');
+		$this->RegisterPropertyString("LocalAddress", $this->GetLocalIP());
 		$this->RegisterAttributeString('LANKey', '');
 		$this->RegisterAttributeString('LANIP', '');
 		$this->RegisterAttributeInteger('LANKeyId', 0);
@@ -345,14 +345,10 @@ class HisenseACDevice extends IPSModule {
 	public function GetConfigurationForm(){
 		$form = '{
 			"elements":
-			[';
-		if(empty($this->ReadPropertyString('LocalAddress'))){
-			$this->SendDebug("GetConfigurationForm", "Local IP Empty: getting: ".$this->GetLocalIP(), 0);
-			$form .= '{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress", "value": "'.$this->GetLocalIP().'" },';
-		}else{
-			$form .= '{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress" },';
-		}
-		$form .= '{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
+			[
+				{ "type": "Label", "caption": "LocalAddressDesc" },
+				{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress" },
+				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
 					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperatureOverride" },
 					{ "type": "NumberSpinner", "name": "OnHysteresis", "caption": "OnHysteresis", "digits": 1, "suffix": "°C" },
 					{ "type": "NumberSpinner", "name": "OffHysteresis", "caption": "OffHysteresis", "digits": 1, "suffix": "°C" }

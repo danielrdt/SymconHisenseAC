@@ -346,7 +346,7 @@ class HisenseACDevice extends IPSModule {
 		$form = '{
 			"elements":
 			[
-				{ "type": "Label", "caption": "LocalAddressDesc" },
+				{ "type": "Label", "caption": "LocalAddressLabel" },
 				{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress" },
 				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
 					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperatureOverride" },

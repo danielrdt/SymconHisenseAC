@@ -27,6 +27,7 @@ class HisenseACSplitter extends IPSModule {
 		$this->RegisterAttributeString("RefreshToken", "");
 		$this->RegisterAttributeInteger("TokenExpire", 0);
 		$this->RegisterAttributeInteger("LastSignIn", 0);
+		$this->RegisterAttributeString("LocalIPAddress", '');
 
 		//Timer
 		$this->RegisterTimer("RefreshTokenTimer", 0, 'HISENSEACSPLIT_RefreshToken($_IPS[\'TARGET\']);');
@@ -96,6 +97,8 @@ class HisenseACSplitter extends IPSModule {
 		]);
 
 		$result = curl_exec($ch);
+		$cInfo = curl_getinfo($ch);
+		$this->WriteAttributeString('LocalIPAddress', $cInfo['local_ip']);
 		curl_close($ch);
 
 		$this->SendDebug("SignIn", "Result: ".$result, 0);
@@ -228,6 +231,20 @@ class HisenseACSplitter extends IPSModule {
 		return $result;
 	}
 
+	private function GetLANKey($DeviceKey){
+		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/devices/$DeviceKey/lan.json");
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Authorization: auth_token'.$this->ReadAttributeString("AuthToken")
+		]);
+
+		$result = curl_exec($ch);
+		curl_close($ch);
+
+		return $result;
+	}
+
 	private function SetDatapoint($Key, $Value){
 		$ch = curl_init("https://ads-field-eu.aylanetworks.com/apiv1/properties/$Key/datapoints.json");
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
@@ -259,6 +276,9 @@ class HisenseACSplitter extends IPSModule {
 				switch($json->command){
 					case 'GetDevices':
 						return $this->GetDevices();
+
+					case 'GetLocalIP':
+						return $this->ReadAttributeString('LocalIPAddress');
 				}
 				break;
 
@@ -266,11 +286,15 @@ class HisenseACSplitter extends IPSModule {
 				switch($json->command){
 					case 'GetProperties':
 						return $this->GetProperties($json->DeviceKey, $json->Properties);
-						break;
 
 					case 'SetDatapoint':
 						return $this->SetDatapoint($json->DatapointKey, $json->DatapointValue);
-						break;
+
+					case 'GetLANKey':
+						return $this->GetLANKey($json->DeviceKey);
+
+					case 'GetDevices':
+						return $this->GetDevices();			
 				}
 				break;
 		}

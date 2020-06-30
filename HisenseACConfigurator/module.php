@@ -64,7 +64,7 @@ class HisenseACConfigurator extends IPSModule {
 				'state'	=> $device->connection_status,
                 'create' => [
                     'moduleID'      => '{CAE274A0-7E22-9376-0884-4D5C3BAD5CDB}',
-                    'configuration' => ['DeviceKey' => $device->key]
+                    'configuration' => ['DeviceKey' => $device->key, 'LocalAddress' => $this->GetLocalIP()]
                 ]
             ];
             $InstanzID = $this->SearchDeviceInstance($SplitterID, '{CAE274A0-7E22-9376-0884-4D5C3BAD5CDB}', $device->key);
@@ -94,6 +94,18 @@ class HisenseACConfigurator extends IPSModule {
 		$jsonData = json_decode($result);
 
 		return $jsonData;
+    }
+    
+    private function GetLocalIP()
+	{
+		$data = array(
+			"DataID"	=> "{57FE6DCC-13F1-4BDA-DE85-D08D408BA58A}",
+			"command"	=> "GetLocalIP"
+		);
+		$data_string = json_encode($data);
+		$result = $this->SendDataToParent($data_string);
+		
+		return $result;
 	}
 
 	/**

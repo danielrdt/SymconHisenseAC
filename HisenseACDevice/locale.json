@@ -25,6 +25,8 @@
 				 "PresenceVariable": "Präsenz",
 				 "OnHysteresis": "Hysterese für Einschalten",
 				 "OffHysteresis": "Hysterese für Ausschalten",
+				 "OffsetLabel": "Temperatur-Offset der AC (Temperatur Anzeige auf AC-Display davon unberührt)",
+				 "Offset": "Temperatur-Offset",
 				 "OutsideMinimumTemperature": "Minimale Aussentemperatur",
 				 "PresenceTrailing": "Präsenz Nachlauf",
 				 "AutoRoomTemperature": "Raumtemperatur Automatik",

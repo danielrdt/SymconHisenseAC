@@ -93,6 +93,7 @@ class HisenseACDevice extends IPSModule {
 		//Automation
 		$this->RegisterVariableBoolean("AutoCooling", $this->Translate("AutoCooling"), "~Switch", 4);
 		$this->RegisterVariableFloat("TargetTemperature", $this->Translate("TargetTemperature"), "~Temperature.Room", 5);
+		$this->RegisterPropertyFloat("Offset", 0.0);
 		$this->RegisterPropertyFloat("OnHysteresis", 0.5);
 		$this->RegisterPropertyFloat("OffHysteresis", 2);
 		$this->RegisterPropertyFloat("OutsideMinimumTemperature", 18.0);
@@ -312,6 +313,7 @@ class HisenseACDevice extends IPSModule {
 			case 't_temp':
 				$Value = round($this->CelsiusToFahrenheit($Value));
 				$SetValue = $this->FahrenheitToCelsius($Value);
+				$Value -= $this->ReadPropertyFloat('Offset');
 				break;
 
 			case 't_power':
@@ -350,6 +352,8 @@ class HisenseACDevice extends IPSModule {
 			[
 				{ "type": "Label", "caption": "LocalAddressLabel" },
 				{ "type": "ValidationTextBox", "name": "LocalAddress", "caption": "LocalAddress" },
+				{ "type": "Label", "caption": "OffsetLabel" },
+				{ "type": "NumberSpinner", "name": "Offset", "caption": "Offset", "digits": 1, "suffix": "°C" },
 				{ "type": "ExpansionPanel", "caption": "AutoRoomTemperature", "items": [
 					{ "type": "SelectVariable", "name": "RoomTemperature", "caption": "RoomTemperatureOverride" },
 					{ "type": "NumberSpinner", "name": "OnHysteresis", "caption": "OnHysteresis", "digits": 1, "suffix": "°C" },
@@ -749,6 +753,7 @@ class HisenseACDevice extends IPSModule {
 					$oldVal = $val;
 					$val = $this->FahrenheitToCelsius($oldVal);
 					$this->SendDebug("Update", "Converted ".$seq->data->name." $oldVal °F to $val °C", 0);
+					$val += $this->ReadPropertyFloat('Offset');
 					break;
 				
 				case 't_power':

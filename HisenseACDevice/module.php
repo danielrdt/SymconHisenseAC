@@ -311,9 +311,7 @@ class HisenseACDevice extends IPSModule {
 		$SetValue = $Value;
 		switch($Ident) {
 			case 't_temp':
-				$Value = round($this->CelsiusToFahrenheit($Value));
-				$SetValue = $this->FahrenheitToCelsius($Value);
-				$Value -= $this->ReadPropertyFloat('Offset');
+				$Value = round($this->CelsiusToFahrenheit($Value - $this->ReadPropertyFloat('Offset')));
 				break;
 
 			case 't_power':
@@ -751,7 +749,7 @@ class HisenseACDevice extends IPSModule {
 				case 'f_temp_in':
 				case 't_temp':
 					$oldVal = $val;
-					$val = $this->FahrenheitToCelsius($oldVal);
+					$val = round($this->FahrenheitToCelsius($oldVal));
 					$this->SendDebug("Update", "Converted ".$seq->data->name." $oldVal °F to $val °C", 0);
 					$val += $this->ReadPropertyFloat('Offset');
 					break;
